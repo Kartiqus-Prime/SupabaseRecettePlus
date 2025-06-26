@@ -28,8 +28,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   bool _isLoading = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
 
   @override
@@ -42,7 +41,7 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  Future<void> _signUpWithEmail() async {
+  Future<void> _signUpWithEmailAndPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -51,56 +50,40 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
-      // Créer le compte avec Firebase Auth
-      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      final UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
 
       // Mettre à jour le nom d'affichage
-      await userCredential.user?.updateDisplayName(_fullNameController.text.trim());
-
-      // Créer le profil utilisateur dans Firestore
-      await FirestoreService.createUserProfile(
-        uid: userCredential.user!.uid,
-        email: _emailController.text.trim(),
-        displayName: _fullNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim().isNotEmpty 
-            ? _phoneController.text.trim() 
-            : null,
+      await userCredential.user?.updateDisplayName(
+        _fullNameController.text.trim(),
       );
 
-      // Envoyer l'email de vérification
-      await userCredential.user?.sendEmailVerification();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Compte créé avec succès! Vérifiez votre email.'),
-            backgroundColor: Colors.green,
-          ),
+      // Créer le profil utilisateur dans Firestore
+      if (userCredential.user != null) {
+        await FirestoreService.createUserProfile(
+          uid: userCredential.user!.uid,
+          displayName: _fullNameController.text.trim(),
+          email: _emailController.text.trim(),
+          phoneNumber: _phoneController.text.trim().isNotEmpty 
+              ? _phoneController.text.trim() 
+              : null,
         );
-        Navigator.pushReplacementNamed(context, '/auth');
+      }
+
+      // Redirection vers la page d'accueil après inscription réussie
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
     } on FirebaseAuthException catch (e) {
       setState(() {
-        switch (e.code) {
-          case 'weak-password':
-            _errorMessage = 'Le mot de passe est trop faible.';
-            break;
-          case 'email-already-in-use':
-            _errorMessage = 'Cette adresse email est déjà utilisée.';
-            break;
-          case 'invalid-email':
-            _errorMessage = 'Adresse email invalide.';
-            break;
-          default:
-            _errorMessage = 'Erreur lors de la création du compte.';
-        }
+        _errorMessage = _getErrorMessage(e.code);
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Une erreur inattendue s\'est produite.';
+        _errorMessage = 'Une erreur inattendue s\'est produite';
       });
     } finally {
       setState(() {
@@ -111,49 +94,74 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<void> _signUpWithGoogle() async {
     setState(() {
-      _isLoading = true;
+      _isGoogleLoading = true;
       _errorMessage = null;
     });
 
     try {
+      // Forcer la déconnexion pour permettre la sélection de compte
+      await _googleSignIn.signOut();
+
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         setState(() {
-          _isLoading = false;
+          _isGoogleLoading = false;
         });
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
-      
-      // Vérifier si c'est un nouvel utilisateur
-      if (userCredential.additionalUserInfo?.isNewUser == true) {
-        // Créer le profil utilisateur dans Firestore
-        await FirestoreService.createUserProfile(
-          uid: userCredential.user!.uid,
-          email: userCredential.user!.email!,
-          displayName: userCredential.user!.displayName ?? '',
-          phoneNumber: null, // Pas de numéro de téléphone avec Google
-        );
+
+      // Créer le profil utilisateur dans Firestore s'il n'existe pas
+      if (userCredential.user != null) {
+        final existingProfile = await FirestoreService.getUserProfile(userCredential.user!.uid);
+        if (existingProfile == null) {
+          await FirestoreService.createUserProfile(
+            uid: userCredential.user!.uid,
+            displayName: userCredential.user!.displayName ?? 'Utilisateur',
+            email: userCredential.user!.email ?? '',
+          );
+        }
       }
 
+      // Redirection vers la page d'accueil après inscription réussie
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/auth');
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = _getErrorMessage(e.code);
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur lors de la connexion avec Google.';
+        _errorMessage = 'Une erreur inattendue s\'est produite';
       });
     } finally {
       setState(() {
-        _isLoading = false;
+        _isGoogleLoading = false;
       });
+    }
+  }
+
+  String _getErrorMessage(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'Cette adresse e-mail est déjà utilisée.';
+      case 'invalid-email':
+        return 'Adresse e-mail invalide.';
+      case 'operation-not-allowed':
+        return 'L\'inscription par e-mail n\'est pas activée.';
+      case 'weak-password':
+        return 'Le mot de passe est trop faible.';
+      default:
+        return 'Erreur lors de l\'inscription';
     }
   }
 
@@ -161,6 +169,14 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -169,46 +185,28 @@ class _SignUpPageState extends State<SignUpPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 40),
-                
-                // Logo et titre
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(
-                          Icons.restaurant_menu,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                // En-tête
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Créer un compte',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
-                      const SizedBox(height: 24),
-                      Text(
-                        AppStrings.createAccount,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Rejoignez-nous pour découvrir l\'univers des saveurs',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.textSecondary,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Rejoignez notre communauté culinaire',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                
                 const SizedBox(height: 40),
 
                 // Message d'erreur
@@ -246,9 +244,38 @@ class _SignUpPageState extends State<SignUpPage> {
                   const SizedBox(height: 24),
                 ],
 
+                // Connexion Google en premier
+                SocialButton(
+                  text: 'Continuer avec Google',
+                  iconPath:
+                      'https://blobs.vusercontent.net/blob/google-logo-ePwwr2o9C1PaCLZNuLkE9VgHSZA3ah.svg',
+                  onPressed: _signUpWithGoogle,
+                  isLoading: _isGoogleLoading,
+                ),
+                const SizedBox(height: 24),
+
+                // Séparateur
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: AppColors.border)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'ou',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: AppColors.border)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
                 // Champs de saisie
                 CustomTextField(
-                  label: AppStrings.fullName,
+                  label: 'Nom complet',
                   controller: _fullNameController,
                   validator: Validators.validateFullName,
                   prefixIcon: const Icon(
@@ -259,7 +286,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 20),
 
                 CustomTextField(
-                  label: AppStrings.email,
+                  label: 'Adresse e-mail',
                   controller: _emailController,
                   validator: Validators.validateEmail,
                   keyboardType: TextInputType.emailAddress,
@@ -283,128 +310,71 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 20),
 
                 CustomTextField(
-                  label: AppStrings.password,
+                  label: 'Mot de passe',
                   controller: _passwordController,
                   validator: Validators.validatePassword,
-                  obscureText: _obscurePassword,
+                  isPassword: true,
                   prefixIcon: const Icon(
                     Icons.lock_outline,
                     color: AppColors.textSecondary,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                      color: AppColors.textSecondary,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
                   ),
                 ),
                 const SizedBox(height: 20),
 
                 CustomTextField(
-                  label: AppStrings.confirmPassword,
+                  label: 'Confirmer le mot de passe',
                   controller: _confirmPasswordController,
                   validator: (value) => Validators.validateConfirmPassword(
                     value,
                     _passwordController.text,
                   ),
-                  obscureText: _obscureConfirmPassword,
+                  isPassword: true,
                   prefixIcon: const Icon(
                     Icons.lock_outline,
                     color: AppColors.textSecondary,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                      color: AppColors.textSecondary,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
                   ),
                 ),
                 const SizedBox(height: 32),
 
                 // Bouton d'inscription
                 CustomButton(
-                  text: AppStrings.signUp,
-                  onPressed: _signUpWithEmail,
-                  isLoading: _isLoading,
-                ),
-                const SizedBox(height: 24),
-
-                // Divider
-                Row(
-                  children: [
-                    Expanded(
-                      child: Divider(color: AppColors.textSecondary.withOpacity(0.3)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'ou',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Divider(color: AppColors.textSecondary.withOpacity(0.3)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Bouton Google
-                SocialButton(
-                  text: 'Continuer avec Google',
-                  iconPath: 'assets/images/google-logo.svg',
-                  onPressed: _signUpWithGoogle,
+                  text: 'Créer un compte',
+                  onPressed: _signUpWithEmailAndPassword,
                   isLoading: _isLoading,
                 ),
                 const SizedBox(height: 32),
 
                 // Lien vers la connexion
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Déjà un compte ? ',
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Vous avez déjà un compte ?',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignInPage(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Se connecter',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SignInPage(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          AppStrings.signIn,
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
               ],
             ),
           ),

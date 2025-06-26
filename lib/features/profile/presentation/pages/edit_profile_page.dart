@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
@@ -16,14 +15,9 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _displayNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _ageController = TextEditingController();
-  final _bioController = TextEditingController();
-  
-  final FirestoreService _firestoreService = FirestoreService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   
   bool _isLoading = false;
   bool _isLoadingProfile = true;
@@ -38,43 +32,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _displayNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _ageController.dispose();
-    _bioController.dispose();
     super.dispose();
   }
 
   Future<void> _loadUserProfile() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return;
+    setState(() {
+      _isLoadingProfile = true;
+    });
 
-      final profile = await _firestoreService.getUserProfile(user.uid);
-      if (profile != null) {
-        setState(() {
-          _fullNameController.text = profile['fullName'] ?? '';
-          _emailController.text = profile['email'] ?? user.email ?? '';
-          _phoneController.text = profile['phoneNumber'] ?? '';
-          _ageController.text = profile['age']?.toString() ?? '';
-          _bioController.text = profile['bio'] ?? '';
-        });
-      } else {
-        // Si le profil n'existe pas, utiliser les données de Firebase Auth
-        setState(() {
-          _emailController.text = user.email ?? '';
-          _fullNameController.text = user.displayName ?? '';
-        });
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final profile = await FirestoreService.getUserProfile(user.uid);
+        
+        if (mounted) {
+          setState(() {
+            _displayNameController.text = profile?['displayName'] ?? user.displayName ?? '';
+            _emailController.text = user.email ?? '';
+            _phoneController.text = profile?['phoneNumber'] ?? '';
+            _isLoadingProfile = false;
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Erreur lors du chargement du profil';
-      });
-    } finally {
-      setState(() {
-        _isLoadingProfile = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
+          _errorMessage = 'Erreur lors du chargement du profil';
+        });
+      }
     }
   }
 
@@ -88,80 +77,66 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      final user = _auth.currentUser;
+      final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception('Utilisateur non connecté');
       }
 
-      // Mettre à jour le profil dans Firestore
-      await _firestoreService.updateUserProfile(
-        uid: user.uid,
-        fullName: _fullNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim().isEmpty 
-            ? null 
-            : _phoneController.text.trim(),
-        age: _ageController.text.trim().isEmpty 
-            ? null 
-            : int.tryParse(_ageController.text.trim()),
-        bio: _bioController.text.trim().isEmpty 
-            ? null 
-            : _bioController.text.trim(),
-      );
-
       // Mettre à jour le nom d'affichage dans Firebase Auth
-      if (_fullNameController.text.trim() != user.displayName) {
-        await user.updateDisplayName(_fullNameController.text.trim());
+      if (_displayNameController.text.trim() != user.displayName) {
+        await user.updateDisplayName(_displayNameController.text.trim());
       }
 
-      setState(() {
-        _successMessage = 'Profil mis à jour avec succès';
-      });
+      // Mettre à jour le profil dans Firestore
+      await FirestoreService.updateUserProfile(
+        uid: user.uid,
+        displayName: _displayNameController.text.trim(),
+        phoneNumber: _phoneController.text.trim().isNotEmpty 
+            ? _phoneController.text.trim() 
+            : null,
+      );
 
-      // Retourner à la page précédente après 2 secondes
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
-      });
-
+      if (mounted) {
+        setState(() {
+          _successMessage = 'Profil mis à jour avec succès';
+        });
+        
+        // Masquer le message de succès après 3 secondes
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              _successMessage = null;
+            });
+          }
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Erreur lors de la mise à jour du profil';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erreur lors de la mise à jour: ${e.toString()}';
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        title: const Text('Modifier le profil'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Modifier le profil',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
       ),
       body: _isLoadingProfile
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
@@ -170,6 +145,59 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Photo de profil (placeholder)
+                      Center(
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primary.withOpacity(0.1),
+                                border: Border.all(
+                                  color: AppColors.primary.withOpacity(0.3),
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                size: 60,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.primary,
+                                ),
+                                child: IconButton(
+                                  onPressed: () {
+                                    // TODO: Implémenter la sélection d'image
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Fonctionnalité à venir'),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
                       // Messages d'erreur/succès
                       if (_errorMessage != null) ...[
                         Container(
@@ -202,7 +230,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                       ],
 
                       if (_successMessage != null) ...[
@@ -218,7 +246,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           ),
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.check_circle_outline,
                                 color: Colors.green,
                                 size: 20,
@@ -236,13 +264,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                       ],
 
-                      // Champs du formulaire
+                      // Champs de saisie
                       CustomTextField(
-                        label: AppStrings.fullName,
-                        controller: _fullNameController,
+                        label: 'Nom complet',
+                        controller: _displayNameController,
                         validator: Validators.validateFullName,
                         prefixIcon: const Icon(
                           Icons.person_outline,
@@ -252,14 +280,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       const SizedBox(height: 20),
 
                       CustomTextField(
-                        label: AppStrings.email,
+                        label: 'Adresse e-mail',
                         controller: _emailController,
-                        validator: Validators.validateEmail,
-                        keyboardType: TextInputType.emailAddress,
                         enabled: false, // L'email ne peut pas être modifié
                         prefixIcon: const Icon(
                           Icons.email_outlined,
                           color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'L\'adresse e-mail ne peut pas être modifiée',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -269,35 +304,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         controller: _phoneController,
                         validator: Validators.validatePhoneNumber,
                         keyboardType: TextInputType.phone,
-                        hintText: 'Ex: +223 76 54 32 10',
                         prefixIcon: const Icon(
                           Icons.phone_outlined,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      CustomTextField(
-                        label: 'Âge (optionnel)',
-                        controller: _ageController,
-                        validator: Validators.validateAge,
-                        keyboardType: TextInputType.number,
-                        hintText: 'Votre âge',
-                        prefixIcon: const Icon(
-                          Icons.cake_outlined,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      CustomTextField(
-                        label: 'Bio (optionnel)',
-                        controller: _bioController,
-                        validator: Validators.validateBio,
-                        maxLines: 3,
-                        hintText: 'Parlez-nous de vous...',
-                        prefixIcon: const Icon(
-                          Icons.edit_outlined,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -308,6 +316,61 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         text: 'Sauvegarder les modifications',
                         onPressed: _updateProfile,
                         isLoading: _isLoading,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Bouton de déconnexion
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final shouldSignOut = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Déconnexion'),
+                                content: const Text(
+                                  'Êtes-vous sûr de vouloir vous déconnecter ?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: const Text('Annuler'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('Déconnexion'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (shouldSignOut == true) {
+                              await FirebaseAuth.instance.signOut();
+                              if (mounted) {
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  '/auth',
+                                  (route) => false,
+                                );
+                              }
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            side: const BorderSide(color: AppColors.error),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Se déconnecter',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
