@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/social_button.dart';
@@ -20,6 +21,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -33,6 +35,7 @@ class _SignUpPageState extends State<SignUpPage> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -58,7 +61,19 @@ class _SignUpPageState extends State<SignUpPage> {
         _fullNameController.text.trim(),
       );
 
-      // Redirection vers la page Shorts après inscription réussie
+      // Créer le profil utilisateur dans Firestore
+      if (userCredential.user != null) {
+        await FirestoreService.createUserProfile(
+          uid: userCredential.user!.uid,
+          displayName: _fullNameController.text.trim(),
+          email: _emailController.text.trim(),
+          phoneNumber: _phoneController.text.trim().isNotEmpty 
+              ? _phoneController.text.trim() 
+              : null,
+        );
+      }
+
+      // Redirection vers la page d'accueil après inscription réussie
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
@@ -68,7 +83,7 @@ class _SignUpPageState extends State<SignUpPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = AppStrings.unknownError;
+        _errorMessage = 'Une erreur inattendue s\'est produite';
       });
     } finally {
       setState(() {
@@ -102,9 +117,21 @@ class _SignUpPageState extends State<SignUpPage> {
         idToken: googleAuth.idToken,
       );
 
-      await _auth.signInWithCredential(credential);
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
 
-      // Redirection vers la page Shorts après inscription réussie
+      // Créer le profil utilisateur dans Firestore s'il n'existe pas
+      if (userCredential.user != null) {
+        final existingProfile = await FirestoreService.getUserProfile(userCredential.user!.uid);
+        if (existingProfile == null) {
+          await FirestoreService.createUserProfile(
+            uid: userCredential.user!.uid,
+            displayName: userCredential.user!.displayName ?? 'Utilisateur',
+            email: userCredential.user!.email ?? '',
+          );
+        }
+      }
+
+      // Redirection vers la page d'accueil après inscription réussie
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
@@ -114,7 +141,7 @@ class _SignUpPageState extends State<SignUpPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = AppStrings.unknownError;
+        _errorMessage = 'Une erreur inattendue s\'est produite';
       });
     } finally {
       setState(() {
@@ -134,7 +161,7 @@ class _SignUpPageState extends State<SignUpPage> {
       case 'weak-password':
         return 'Le mot de passe est trop faible.';
       default:
-        return AppStrings.signUpError;
+        return 'Erreur lors de l\'inscription';
     }
   }
 
@@ -163,7 +190,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppStrings.createAccount,
+                      'Créer un compte',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -219,7 +246,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 // Connexion Google en premier
                 SocialButton(
-                  text: AppStrings.signInWithGoogle,
+                  text: 'Continuer avec Google',
                   iconPath:
                       'https://blobs.vusercontent.net/blob/google-logo-ePwwr2o9C1PaCLZNuLkE9VgHSZA3ah.svg',
                   onPressed: _signUpWithGoogle,
@@ -234,7 +261,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        AppStrings.or,
+                        'ou',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 14,
@@ -248,7 +275,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 // Champs de saisie
                 CustomTextField(
-                  label: AppStrings.fullName,
+                  label: 'Nom complet',
                   controller: _fullNameController,
                   validator: Validators.validateFullName,
                   prefixIcon: const Icon(
@@ -259,7 +286,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 20),
 
                 CustomTextField(
-                  label: AppStrings.email,
+                  label: 'Adresse e-mail',
                   controller: _emailController,
                   validator: Validators.validateEmail,
                   keyboardType: TextInputType.emailAddress,
@@ -271,7 +298,19 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 20),
 
                 CustomTextField(
-                  label: AppStrings.password,
+                  label: 'Numéro de téléphone (optionnel)',
+                  controller: _phoneController,
+                  validator: Validators.validatePhoneNumber,
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: const Icon(
+                    Icons.phone_outlined,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  label: 'Mot de passe',
                   controller: _passwordController,
                   validator: Validators.validatePassword,
                   isPassword: true,
@@ -283,7 +322,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 20),
 
                 CustomTextField(
-                  label: AppStrings.confirmPassword,
+                  label: 'Confirmer le mot de passe',
                   controller: _confirmPasswordController,
                   validator: (value) => Validators.validateConfirmPassword(
                     value,
@@ -299,7 +338,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 // Bouton d'inscription
                 CustomButton(
-                  text: AppStrings.createAccount,
+                  text: 'Créer un compte',
                   onPressed: _signUpWithEmailAndPassword,
                   isLoading: _isLoading,
                 ),
@@ -310,7 +349,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      AppStrings.alreadyHaveAccount,
+                      'Vous avez déjà un compte ?',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 14,
@@ -326,7 +365,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         );
                       },
                       child: Text(
-                        AppStrings.signIn,
+                        'Se connecter',
                         style: TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w600,

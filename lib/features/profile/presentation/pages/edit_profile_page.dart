@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/services/firestore_service.dart';
-import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
+import '../../../../shared/widgets/custom_button.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -16,281 +17,79 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _displayNameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _verificationCodeController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   bool _isLoading = false;
-  bool _isVerifyingPhone = false;
-  bool _phoneVerified = false;
-  String? _verificationId;
-  String? _currentPhoneNumber;
+  String? _errorMessage;
+  String? _successMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadUserProfile();
   }
 
-  Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
+  @override
+  void dispose() {
+    _displayNameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = _auth.currentUser;
     if (user != null) {
       _displayNameController.text = user.displayName ?? '';
-      _currentPhoneNumber = user.phoneNumber;
-      _phoneController.text = _currentPhoneNumber ?? '';
-      _phoneVerified = _currentPhoneNumber != null;
-
-      // Load additional data from Firestore
-      final userData = await FirestoreService.getUserProfile();
-      if (userData != null && mounted) {
+      
+      // Charger les données depuis Firestore
+      final profile = await FirestoreService.getUserProfile();
+      if (profile != null && mounted) {
         setState(() {
-          _displayNameController.text = userData['displayName'] ?? '';
-          if (userData['phoneNumber'] != null) {
-            _phoneController.text = userData['phoneNumber'];
-            _currentPhoneNumber = userData['phoneNumber'];
-            _phoneVerified = true;
-          }
+          _phoneController.text = profile['phoneNumber'] ?? '';
         });
       }
     }
   }
 
-  // Fonction pour formater le numéro de téléphone
-  String _formatPhoneNumber(String phone) {
-    // Supprimer tous les espaces et caractères spéciaux
-    String cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
-
-    // Si le numéro ne commence pas par +, ajouter le code pays par défaut
-    if (!cleaned.startsWith('+')) {
-      // Pour le Mali, si le numéro commence par 0, le remplacer par +223
-      if (cleaned.startsWith('0')) {
-        cleaned = '+223${cleaned.substring(1)}';
-      } else if (cleaned.length == 8) {
-        // Numéro malien standard (8 chiffres)
-        cleaned = '+223$cleaned';
-      } else {
-        // Par défaut, ajouter +223 pour le Mali
-        cleaned = '+223$cleaned';
-      }
-    }
-
-    return cleaned;
-  }
-
-  Future<void> _verifyPhoneNumber() async {
-    if (_phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez entrer un numéro de téléphone')),
-      );
-      return;
-    }
-
-    // Formater le numéro de téléphone
-    String formattedPhone = _formatPhoneNumber(_phoneController.text);
-
-    print('🔍 Tentative de vérification du numéro: $formattedPhone');
-
-    // Si le numéro a changé, marquer comme non vérifié
-    if (formattedPhone != _currentPhoneNumber) {
-      setState(() {
-        _phoneVerified = false;
-      });
-    }
-
-    // Validation spécifique pour le Mali
-    if (formattedPhone.startsWith('+223')) {
-      String number = formattedPhone.substring(4);
-      if (number.length != 8) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Numéro malien invalide. Format: +223XXXXXXXX (8 chiffres après +223)',
-            ),
-          ),
-        );
-        setState(() {
-          _isVerifyingPhone = false;
-        });
-        return;
-      }
-    }
-
-    setState(() {
-      _isVerifyingPhone = true;
-    });
-
-    try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: formattedPhone,
-        timeout: const Duration(seconds: 60),
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          print('✅ Vérification automatique réussie');
-          await _linkPhoneCredential(credential);
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          print('❌ Échec de la vérification: ${e.code} - ${e.message}');
-          setState(() {
-            _isVerifyingPhone = false;
-          });
-
-          String errorMessage = 'Erreur de vérification';
-          switch (e.code) {
-            case 'invalid-phone-number':
-              errorMessage =
-                  'Numéro de téléphone invalide. Utilisez le format international (+33...)';
-              break;
-            case 'too-many-requests':
-              errorMessage = 'Trop de tentatives. Réessayez plus tard.';
-              break;
-            case 'quota-exceeded':
-              errorMessage = 'Quota SMS dépassé. Réessayez demain.';
-              break;
-            default:
-              errorMessage = 'Erreur: ${e.message}';
-          }
-
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(errorMessage)));
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          print('📱 Code SMS envoyé avec succès');
-          setState(() {
-            _verificationId = verificationId;
-            _isVerifyingPhone = false;
-          });
-          _showVerificationDialog();
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          print('⏰ Timeout de récupération automatique');
-          _verificationId = verificationId;
-        },
-      );
-    } catch (e) {
-      print('💥 Erreur générale: $e');
-      setState(() {
-        _isVerifyingPhone = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-    }
-  }
-
-  void _showVerificationDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Vérification du téléphone'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Un code de vérification a été envoyé au ${_phoneController.text}',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _verificationCodeController,
-              decoration: const InputDecoration(
-                labelText: 'Code de vérification',
-                border: OutlineInputBorder(),
-                hintText: '123456',
-              ),
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _verificationCodeController.clear();
-            },
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(onPressed: _verifyCode, child: const Text('Vérifier')),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _verifyCode() async {
-    if (_verificationId == null || _verificationCodeController.text.isEmpty) {
-      return;
-    }
-
-    try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: _verificationCodeController.text,
-      );
-
-      await _linkPhoneCredential(credential);
-      Navigator.of(context).pop(); // Close dialog
-    } catch (e) {
-      print('❌ Code invalide: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Code invalide: $e')));
-    }
-  }
-
-  Future<void> _linkPhoneCredential(PhoneAuthCredential credential) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await user.linkWithCredential(credential);
-        setState(() {
-          _phoneVerified = true;
-          _currentPhoneNumber = _formatPhoneNumber(_phoneController.text);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Numéro de téléphone vérifié avec succès!'),
-          ),
-        );
-      }
-    } catch (e) {
-      print('❌ Erreur lors de la liaison: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erreur lors de la liaison: $e')));
-    }
-  }
-
-  Future<void> _saveProfile() async {
+  Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
+      _successMessage = null;
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Update display name in Firebase Auth
-        await user.updateDisplayName(_displayNameController.text);
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Utilisateur non connecté');
 
-        // Update profile in Firestore
-        await FirestoreService.updateUserProfile(
-          uid: user.uid,
-          displayName: _displayNameController.text,
-          phoneNumber: _phoneVerified
-              ? _formatPhoneNumber(_phoneController.text)
-              : null,
-        );
+      // Mettre à jour le nom d'affichage dans Firebase Auth
+      await user.updateDisplayName(_displayNameController.text.trim());
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profil mis à jour avec succès!')),
-        );
-
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de la mise à jour: $e')),
+      // Mettre à jour le profil dans Firestore
+      await FirestoreService.updateUserProfile(
+        uid: user.uid,
+        displayName: _displayNameController.text.trim(),
+        phoneNumber: _phoneController.text.trim().isNotEmpty 
+            ? _phoneController.text.trim() 
+            : null,
       );
+
+      setState(() {
+        _successMessage = 'Profil mis à jour avec succès';
+      });
+
+      // Retourner à la page précédente après un délai
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Erreur lors de la mise à jour du profil';
+      });
     } finally {
       setState(() {
         _isLoading = false;
@@ -301,194 +100,191 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Modifier le profil'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Modifier le profil',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Photo de profil
-              Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primary.withOpacity(0.1),
-                        border: Border.all(color: AppColors.primary, width: 3),
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 60,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Nom d'affichage
-              CustomTextField(
-                controller: _displayNameController,
-                label: 'Nom d\'affichage',
-                prefixIcon: Icon(Icons.person),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre nom';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // Numéro de téléphone avec aide
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Avatar de profil
+                Center(
+                  child: Stack(
                     children: [
-                      Expanded(
-                        child: CustomTextField(
-                          controller: _phoneController,
-                          label: 'Numéro de téléphone',
-                          prefixIcon: Icon(Icons.phone),
-                          keyboardType: TextInputType.phone,
-                          enabled: true,
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: _isVerifyingPhone
-                            ? null
-                            : _verifyPhoneNumber,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 16,
                           ),
                         ),
-                        child: _isVerifyingPhone
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                _phoneVerified ? 'Re-vérifier' : 'Vérifier',
-                                style: const TextStyle(color: Colors.white),
-                              ),
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 40),
 
-                  // Aide pour le format
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Format Mali: +22312345678 ou 12345678',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                // Messages de statut
+                if (_errorMessage != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.error.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(
+                              color: AppColors.error,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 24),
+                ],
 
-                  if (_phoneVerified && _currentPhoneNumber != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.verified,
-                            color: Colors.green,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Numéro vérifié: $_currentPhoneNumber',
+                if (_successMessage != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.green.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _successMessage!,
                             style: const TextStyle(
                               color: Colors.green,
-                              fontSize: 12,
+                              fontSize: 14,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-
-                  if (!_phoneVerified && _phoneController.text.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.warning,
-                            color: Colors.orange,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Numéro non vérifié',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  ),
+                  const SizedBox(height: 24),
                 ],
-              ),
 
-              const SizedBox(height: 40),
+                // Champs de saisie
+                CustomTextField(
+                  label: 'Nom d\'affichage',
+                  controller: _displayNameController,
+                  validator: Validators.validateFullName,
+                  prefixIcon: const Icon(
+                    Icons.person_outline,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-              // Bouton de sauvegarde
-              CustomButton(
-                text: 'Sauvegarder',
-                onPressed: _isLoading ? null : _saveProfile,
-                isLoading: _isLoading,
-              ),
-            ],
+                CustomTextField(
+                  label: 'Numéro de téléphone (optionnel)',
+                  controller: _phoneController,
+                  validator: Validators.validatePhoneNumber,
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: const Icon(
+                    Icons.phone_outlined,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Email (lecture seule)
+                CustomTextField(
+                  label: 'Adresse e-mail',
+                  initialValue: _auth.currentUser?.email ?? '',
+                  enabled: false,
+                  prefixIcon: const Icon(
+                    Icons.email_outlined,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'L\'adresse e-mail ne peut pas être modifiée',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 40),
+
+                // Bouton de sauvegarde
+                CustomButton(
+                  text: 'Sauvegarder les modifications',
+                  onPressed: _updateProfile,
+                  isLoading: _isLoading,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _displayNameController.dispose();
-    _phoneController.dispose();
-    _verificationCodeController.dispose();
-    super.dispose();
   }
 }
