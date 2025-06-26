@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import 'edit_profile_page.dart';
 import 'favorites_page.dart';
@@ -12,7 +12,7 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -50,10 +50,10 @@ class ProfilePage extends StatelessWidget {
                           width: 3,
                         ),
                       ),
-                      child: user?.photoURL != null
+                      child: user?.userMetadata?['avatar_url'] != null
                           ? ClipOval(
                               child: Image.network(
-                                user!.photoURL!,
+                                user!.userMetadata!['avatar_url'],
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
                                   return const Icon(
@@ -73,7 +73,7 @@ class ProfilePage extends StatelessWidget {
                     const SizedBox(height: 16),
                     // Nom de l'utilisateur
                     Text(
-                      user?.displayName ?? 'Utilisateur',
+                      user?.userMetadata?['display_name'] ?? 'Utilisateur',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -213,7 +213,7 @@ class ProfilePage extends StatelessWidget {
                     );
                     
                     if (shouldLogout == true) {
-                      await FirebaseAuth.instance.signOut();
+                      await Supabase.instance.client.auth.signOut();
                       if (context.mounted) {
                         Navigator.pushNamedAndRemoveUntil(
                           context,

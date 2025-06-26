@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/validators.dart';
@@ -16,7 +16,7 @@ class ForgotPasswordPage extends StatefulWidget {
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -38,7 +38,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
 
     try {
-      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      await _supabase.auth.resetPasswordForEmail(_emailController.text.trim());
 
       setState(() {
         _successMessage =
@@ -50,9 +50,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (mounted) {
         Navigator.pop(context);
       }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       setState(() {
-        _errorMessage = _getErrorMessage(e.code);
+        _errorMessage = _getErrorMessage(e.message);
       });
     } catch (e) {
       setState(() {
@@ -66,17 +66,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     }
   }
 
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'user-not-found':
-        return 'Aucun utilisateur trouvé avec cette adresse e-mail.';
-      case 'invalid-email':
-        return 'Adresse e-mail invalide.';
-      case 'too-many-requests':
-        return 'Trop de demandes. Veuillez réessayer plus tard.';
-      default:
-        return 'Erreur lors de l\'envoi de l\'email de réinitialisation.';
+  String _getErrorMessage(String message) {
+    if (message.contains('User not found')) {
+      return 'Aucun utilisateur trouvé avec cette adresse e-mail.';
+    } else if (message.contains('Invalid email')) {
+      return 'Adresse e-mail invalide.';
+    } else if (message.contains('Too many requests')) {
+      return 'Trop de demandes. Veuillez réessayer plus tard.';
     }
+    return 'Erreur lors de l\'envoi de l\'email de réinitialisation.';
   }
 
   @override

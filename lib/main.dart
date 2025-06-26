@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'firebase_options.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_options.dart';
 import 'core/constants/app_colors.dart';
 import 'features/auth/presentation/pages/welcome_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
@@ -10,7 +9,12 @@ import 'features/products/presentation/pages/products_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  await Supabase.initialize(
+    url: SupabaseOptions.url,
+    anonKey: SupabaseOptions.anonKey,
+  );
+  
   runApp(const RecettePlusApp());
 }
 
@@ -49,8 +53,8 @@ class RecettePlusApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/welcome': (context) => const WelcomePage(),
       },
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
@@ -62,7 +66,9 @@ class RecettePlusApp extends StatelessWidget {
               ),
             );
           }
-          if (snapshot.hasData) {
+          
+          final session = Supabase.instance.client.auth.currentSession;
+          if (session != null) {
             // Utilisateur connecté - aller directement à la page Shorts (index 0)
             return const HomePage(initialIndex: 0);
           }

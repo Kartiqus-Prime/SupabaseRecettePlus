@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -21,7 +21,7 @@ class _SignInPageState extends State<SignInPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   bool _isLoading = false;
@@ -44,7 +44,7 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      await _auth.signInWithEmailAndPassword(
+      await _supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -53,9 +53,9 @@ class _SignInPageState extends State<SignInPage> {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       setState(() {
-        _errorMessage = _getErrorMessage(e.code);
+        _errorMessage = _getErrorMessage(e.message);
       });
     } catch (e) {
       setState(() {
@@ -88,20 +88,20 @@ class _SignInPageState extends State<SignInPage> {
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
 
-      await _auth.signInWithCredential(credential);
+      await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
+        accessToken: googleAuth.accessToken,
+      );
 
       // Redirection vers la page Shorts après connexion réussie
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       setState(() {
-        _errorMessage = _getErrorMessage(e.code);
+        _errorMessage = _getErrorMessage(e.message);
       });
     } catch (e) {
       setState(() {
@@ -114,21 +114,15 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'user-not-found':
-        return 'Aucun utilisateur trouvé avec cette adresse e-mail.';
-      case 'wrong-password':
-        return 'Mot de passe incorrect.';
-      case 'invalid-email':
-        return 'Adresse e-mail invalide.';
-      case 'user-disabled':
-        return 'Ce compte a été désactivé.';
-      case 'too-many-requests':
-        return 'Trop de tentatives. Veuillez réessayer plus tard.';
-      default:
-        return AppStrings.signInError;
+  String _getErrorMessage(String message) {
+    if (message.contains('Invalid login credentials')) {
+      return 'Email ou mot de passe incorrect.';
+    } else if (message.contains('Email not confirmed')) {
+      return 'Veuillez confirmer votre email avant de vous connecter.';
+    } else if (message.contains('Too many requests')) {
+      return 'Trop de tentatives. Veuillez réessayer plus tard.';
     }
+    return AppStrings.signInError;
   }
 
   @override

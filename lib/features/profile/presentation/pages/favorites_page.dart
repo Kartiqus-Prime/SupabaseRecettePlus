@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/supabase_service.dart';
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
@@ -25,7 +25,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     });
 
     try {
-      final favorites = await FirestoreService.getUserFavorites();
+      final favorites = await SupabaseService.getUserFavorites();
       if (mounted) {
         setState(() {
           _favorites = favorites;
@@ -46,7 +46,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Future<void> _removeFromFavorites(String recipeId, int index) async {
     try {
-      await FirestoreService.removeFromFavorites(recipeId);
+      await SupabaseService.removeFromFavorites(recipeId);
       setState(() {
         _favorites.removeAt(index);
       });
@@ -80,8 +80,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _favorites.length,
                     itemBuilder: (context, index) {
-                      final recipe = _favorites[index];
-                      return _buildFavoriteCard(recipe, index);
+                      final favorite = _favorites[index];
+                      final recipe = favorite['recipes'] ?? {};
+                      return _buildFavoriteCard(recipe, favorite['recipe_id'], index);
                     },
                   ),
                 ),
@@ -121,7 +122,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     );
   }
 
-  Widget _buildFavoriteCard(Map<String, dynamic> recipe, int index) {
+  Widget _buildFavoriteCard(Map<String, dynamic> recipe, String recipeId, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -155,11 +156,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   borderRadius: BorderRadius.circular(12),
                   color: AppColors.primary.withOpacity(0.1),
                 ),
-                child: recipe['imageUrl'] != null
+                child: recipe['image_url'] != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.network(
-                          recipe['imageUrl'],
+                          recipe['image_url'],
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return const Icon(
@@ -252,7 +253,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               
               // Bouton de suppression
               IconButton(
-                onPressed: () => _removeFromFavorites(recipe['id'], index),
+                onPressed: () => _removeFromFavorites(recipeId, index),
                 icon: const Icon(
                   Icons.favorite,
                   color: Colors.red,

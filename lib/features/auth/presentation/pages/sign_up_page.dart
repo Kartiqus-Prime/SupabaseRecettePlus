@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/social_button.dart';
@@ -24,7 +24,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   bool _isLoading = false;
@@ -50,21 +50,21 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
-      final UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-
-      // Mettre à jour le nom d'affichage
-      await userCredential.user?.updateDisplayName(
-        _fullNameController.text.trim(),
+      final AuthResponse response = await _supabase.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        data: {
+          'display_name': _fullNameController.text.trim(),
+          'phone_number': _phoneController.text.trim().isNotEmpty 
+              ? _phoneController.text.trim() 
+              : null,
+        },
       );
 
-      // Créer le profil utilisateur dans Firestore
-      if (userCredential.user != null) {
-        await FirestoreService.createUserProfile(
-          uid: userCredential.user!.uid,
+      // Créer le profil utilisateur dans la base de données
+      if (response.user != null) {
+        await SupabaseService.createUserProfile(
+          uid: response.user!.id,
           displayName: _fullNameController.text.trim(),
           email: _emailController.text.trim(),
           phoneNumber: _phoneController.text.trim().isNotEmpty 
@@ -77,9 +77,9 @@ class _SignUpPageState extends State<SignUpPage> {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       setState(() {
-        _errorMessage = _getErrorMessage(e.code);
+        _errorMessage = _getErrorMessage(e.message);
       });
     } catch (e) {
       setState(() {
@@ -112,21 +112,21 @@ class _SignUpPageState extends State<SignUpPage> {
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
+
+      final AuthResponse response = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
         accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
-
-      // Créer le profil utilisateur dans Firestore s'il n'existe pas
-      if (userCredential.user != null) {
-        final existingProfile = await FirestoreService.getUserProfile(userCredential.user!.uid);
+      // Créer le profil utilisateur dans la base de données s'il n'existe pas
+      if (response.user != null) {
+        final existingProfile = await SupabaseService.getUserProfile(response.user!.id);
         if (existingProfile == null) {
-          await FirestoreService.createUserProfile(
-            uid: userCredential.user!.uid,
-            displayName: userCredential.user!.displayName ?? 'Utilisateur',
-            email: userCredential.user!.email ?? '',
+          await SupabaseService.createUserProfile(
+            uid: response.user!.id,
+            displayName: response.user!.userMetadata?['display_name'] ?? 'Utilisateur',
+            email: response.user!.email ?? '',
           );
         }
       }
@@ -135,9 +135,9 @@ class _SignUpPageState extends State<SignUpPage> {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       setState(() {
-        _errorMessage = _getErrorMessage(e.code);
+        _errorMessage = _getErrorMessage(e.message);
       });
     } catch (e) {
       setState(() {
@@ -150,19 +150,15 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'email-already-in-use':
-        return 'Cette adresse e-mail est déjà utilisée.';
-      case 'invalid-email':
-        return 'Adresse e-mail invalide.';
-      case 'operation-not-allowed':
-        return 'L\'inscription par e-mail n\'est pas activée.';
-      case 'weak-password':
-        return 'Le mot de passe est trop faible.';
-      default:
-        return 'Erreur lors de l\'inscription';
+  String _getErrorMessage(String message) {
+    if (message.contains('User already registered')) {
+      return 'Cette adresse e-mail est déjà utilisée.';
+    } else if (message.contains('Password should be at least')) {
+      return 'Le mot de passe doit contenir au moins 6 caractères.';
+    } else if (message.contains('Unable to validate email address')) {
+      return 'Adresse e-mail invalide.';
     }
+    return 'Erreur lors de l\'inscription';
   }
 
   @override

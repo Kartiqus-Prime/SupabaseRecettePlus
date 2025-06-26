@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/supabase_service.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
@@ -44,15 +44,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
-        final profile = await FirestoreService.getUserProfile(user.uid);
+        final profile = await SupabaseService.getUserProfile(user.id);
         
         if (mounted) {
           setState(() {
-            _displayNameController.text = profile?['displayName'] ?? user.displayName ?? '';
+            _displayNameController.text = profile?['display_name'] ?? user.userMetadata?['display_name'] ?? '';
             _emailController.text = user.email ?? '';
-            _phoneController.text = profile?['phoneNumber'] ?? '';
+            _phoneController.text = profile?['phone_number'] ?? '';
             _isLoadingProfile = false;
           });
         }
@@ -77,19 +77,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
         throw Exception('Utilisateur non connecté');
       }
 
-      // Mettre à jour le nom d'affichage dans Firebase Auth
-      if (_displayNameController.text.trim() != user.displayName) {
-        await user.updateDisplayName(_displayNameController.text.trim());
-      }
+      // Mettre à jour les métadonnées utilisateur
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(
+          data: {
+            'display_name': _displayNameController.text.trim(),
+          },
+        ),
+      );
 
-      // Mettre à jour le profil dans Firestore
-      await FirestoreService.updateUserProfile(
-        uid: user.uid,
+      // Mettre à jour le profil dans la base de données
+      await SupabaseService.updateUserProfile(
+        uid: user.id,
         displayName: _displayNameController.text.trim(),
         phoneNumber: _phoneController.text.trim().isNotEmpty 
             ? _phoneController.text.trim() 
@@ -345,11 +349,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             );
 
                             if (shouldSignOut == true) {
-                              await FirebaseAuth.instance.signOut();
+                              await Supabase.instance.client.auth.signOut();
                               if (mounted) {
                                 Navigator.pushNamedAndRemoveUntil(
                                   context,
-                                  '/auth',
+                                  '/welcome',
                                   (route) => false,
                                 );
                               }
