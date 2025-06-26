@@ -1,377 +1,193 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
 class FirestoreService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // User Profile Methods
+  // Collection des utilisateurs
+  static const String _usersCollection = 'users';
+  static const String _recipesCollection = 'recipes';
+  static const String _favoritesCollection = 'favorites';
+
+  // Créer un profil utilisateur
   static Future<void> createUserProfile({
     required String uid,
-    required String displayName,
     required String email,
+    required String displayName,
     String? phoneNumber,
-    String role = 'user',
   }) async {
     try {
-      await _firestore.collection('users').doc(uid).set({
-        'displayName': displayName,
+      await _firestore.collection(_usersCollection).doc(uid).set({
+        'uid': uid,
         'email': email,
+        'displayName': displayName,
         'phoneNumber': phoneNumber,
-        'role': role,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'isEmailVerified': false,
+        'profileImageUrl': null,
       });
-      if (kDebugMode) {
-        print('✅ Profil utilisateur créé avec succès');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la création du profil: $e');
-      }
-      rethrow;
+      throw Exception('Erreur lors de la création du profil: $e');
     }
   }
 
-  static Future<Map<String, dynamic>?> getUserProfile([String? uid]) async {
-    try {
-      final userId = uid ?? _auth.currentUser?.uid;
-      if (userId == null) return null;
-
-      final doc = await _firestore.collection('users').doc(userId).get();
-      return doc.exists ? doc.data() : null;
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération du profil: $e');
-      }
-      return null;
-    }
-  }
-
+  // Mettre à jour le profil utilisateur
   static Future<void> updateUserProfile({
     required String uid,
     String? displayName,
     String? phoneNumber,
-    Map<String, dynamic>? additionalData,
+    String? profileImageUrl,
   }) async {
     try {
-      final updateData = <String, dynamic>{
+      Map<String, dynamic> updateData = {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (displayName != null) updateData['displayName'] = displayName;
-      if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
-      if (additionalData != null) updateData.addAll(additionalData);
+      if (displayName != null) {
+        updateData['displayName'] = displayName;
+      }
 
-      await _firestore.collection('users').doc(uid).update(updateData);
-      if (kDebugMode) {
-        print('✅ Profil utilisateur mis à jour avec succès');
+      if (phoneNumber != null) {
+        updateData['phoneNumber'] = phoneNumber;
       }
+
+      if (profileImageUrl != null) {
+        updateData['profileImageUrl'] = profileImageUrl;
+      }
+
+      await _firestore.collection(_usersCollection).doc(uid).update(updateData);
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la mise à jour du profil: $e');
-      }
-      rethrow;
+      throw Exception('Erreur lors de la mise à jour du profil: $e');
     }
   }
 
-  // Favorites Methods
-  static Future<void> addToFavorites(String recipeId) async {
+  // Récupérer le profil utilisateur
+  static Future<Map<String, dynamic>?> getUserProfile([String? uid]) async {
     try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) throw Exception('Utilisateur non connecté');
+      final String userId = uid ?? _auth.currentUser?.uid ?? '';
+      if (userId.isEmpty) return null;
 
-      await _firestore.collection('favorites').add({
-        'userId': userId,
-        'recipeId': recipeId,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (kDebugMode) {
-        print('✅ Recette ajoutée aux favoris');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de l\'ajout aux favoris: $e');
-      }
-      rethrow;
-    }
-  }
-
-  static Future<void> removeFromFavorites(String recipeId) async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) throw Exception('Utilisateur non connecté');
-
-      final query = await _firestore
-          .collection('favorites')
-          .where('userId', isEqualTo: userId)
-          .where('recipeId', isEqualTo: recipeId)
+      final DocumentSnapshot doc = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
           .get();
 
-      for (var doc in query.docs) {
-        await doc.reference.delete();
+      if (doc.exists) {
+        return doc.data() as Map<String, dynamic>?;
       }
-      if (kDebugMode) {
-        print('✅ Recette supprimée des favoris');
-      }
+      return null;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la suppression des favoris: $e');
-      }
-      rethrow;
+      throw Exception('Erreur lors de la récupération du profil: $e');
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getUserFavorites() async {
+  // Vérifier si un utilisateur existe
+  static Future<bool> userExists(String uid) async {
     try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return [];
-
-      // Requête simplifiée sans orderBy pour éviter l'index composite
-      final favoritesSnapshot = await _firestore
-          .collection('favorites')
-          .where('userId', isEqualTo: userId)
+      final DocumentSnapshot doc = await _firestore
+          .collection(_usersCollection)
+          .doc(uid)
           .get();
-
-      List<Map<String, dynamic>> favoriteRecipes = [];
-
-      for (var doc in favoritesSnapshot.docs) {
-        final favoriteData = doc.data();
-        final recipeId = favoriteData['recipeId'];
-
-        // Récupérer les détails de la recette
-        final recipeDoc = await _firestore
-            .collection('recipes')
-            .doc(recipeId)
-            .get();
-
-        if (recipeDoc.exists) {
-          final recipeData = recipeDoc.data()!;
-          recipeData['id'] = recipeDoc.id;
-          recipeData['favoriteId'] = doc.id;
-          favoriteRecipes.add(recipeData);
-        }
-      }
-
-      // Trier localement par date de création du favori
-      favoriteRecipes.sort((a, b) {
-        final aTime =
-            favoritesSnapshot.docs
-                    .firstWhere((doc) => doc.id == a['favoriteId'])
-                    .data()['createdAt']
-                as Timestamp?;
-        final bTime =
-            favoritesSnapshot.docs
-                    .firstWhere((doc) => doc.id == b['favoriteId'])
-                    .data()['createdAt']
-                as Timestamp?;
-
-        if (aTime == null || bTime == null) return 0;
-        return bTime.compareTo(aTime);
-      });
-
-      return favoriteRecipes;
+      return doc.exists;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération des favoris: $e');
-      }
-      return [];
-    }
-  }
-
-  static Future<bool> isFavorite(String recipeId) async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return false;
-
-      final query = await _firestore
-          .collection('favorites')
-          .where('userId', isEqualTo: userId)
-          .where('recipeId', isEqualTo: recipeId)
-          .limit(1)
-          .get();
-
-      return query.docs.isNotEmpty;
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la vérification des favoris: $e');
-      }
       return false;
     }
   }
 
-  // Recipes Methods
-  static Future<List<Map<String, dynamic>>> getRecipes({
-    String? category,
-    String? searchQuery,
-    int limit = 20,
-  }) async {
+  // Supprimer le profil utilisateur
+  static Future<void> deleteUserProfile(String uid) async {
     try {
-      Query query = _firestore.collection('recipes');
-
-      if (category != null && category.isNotEmpty) {
-        query = query.where('category', isEqualTo: category);
-      }
-
-      query = query.orderBy('createdAt', descending: true).limit(limit);
-
-      final snapshot = await query.get();
-      final recipes = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-
-      // Filter by search query if provided
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        return recipes.where((recipe) {
-          final title = recipe['title']?.toString().toLowerCase() ?? '';
-          final description =
-              recipe['description']?.toString().toLowerCase() ?? '';
-          final search = searchQuery.toLowerCase();
-          return title.contains(search) || description.contains(search);
-        }).toList();
-      }
-
-      return recipes;
+      await _firestore.collection(_usersCollection).doc(uid).delete();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération des recettes: $e');
-      }
-      return [];
+      throw Exception('Erreur lors de la suppression du profil: $e');
     }
   }
 
-  // Products Methods
-  static Future<List<Map<String, dynamic>>> getProducts({
-    String? category,
-    String? searchQuery,
-    int limit = 20,
-  }) async {
+  // Mettre à jour le statut de vérification de l'email
+  static Future<void> updateEmailVerificationStatus(String uid, bool isVerified) async {
     try {
-      Query query = _firestore.collection('products');
-
-      if (category != null && category.isNotEmpty) {
-        query = query.where('category', isEqualTo: category);
-      }
-
-      query = query.orderBy('name').limit(limit);
-
-      final snapshot = await query.get();
-      final products = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-
-      // Filter by search query if provided
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        return products.where((product) {
-          final name = product['name']?.toString().toLowerCase() ?? '';
-          final search = searchQuery.toLowerCase();
-          return name.contains(search);
-        }).toList();
-      }
-
-      return products;
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération des produits: $e');
-      }
-      return [];
-    }
-  }
-
-  // User History Methods
-  static Future<void> addToHistory(String recipeId) async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return;
-
-      // Remove existing history entry for this recipe
-      final existingQuery = await _firestore
-          .collection('history')
-          .where('userId', isEqualTo: userId)
-          .where('recipeId', isEqualTo: recipeId)
-          .get();
-
-      for (var doc in existingQuery.docs) {
-        await doc.reference.delete();
-      }
-
-      // Add new history entry
-      await _firestore.collection('history').add({
-        'userId': userId,
-        'recipeId': recipeId,
-        'viewedAt': FieldValue.serverTimestamp(),
+      await _firestore.collection(_usersCollection).doc(uid).update({
+        'isEmailVerified': isVerified,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de l\'ajout à l\'historique: $e');
-      }
+      throw Exception('Erreur lors de la mise à jour du statut de vérification: $e');
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getUserHistory() async {
+  // Ajouter une recette aux favoris
+  static Future<void> addToFavorites(String recipeId) async {
     try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return [];
+      final String? uid = _auth.currentUser?.uid;
+      if (uid == null) throw Exception('Utilisateur non connecté');
 
-      final historyQuery = await _firestore
-          .collection('history')
-          .where('userId', isEqualTo: userId)
-          .orderBy('viewedAt', descending: true)
-          .limit(50)
-          .get();
-
-      final List<Map<String, dynamic>> history = [];
-
-      for (var historyDoc in historyQuery.docs) {
-        final recipeId = historyDoc.data()['recipeId'];
-        final recipeDoc = await _firestore
-            .collection('recipes')
-            .doc(recipeId)
-            .get();
-
-        if (recipeDoc.exists) {
-          final recipeData = recipeDoc.data()!;
-          recipeData['id'] = recipeDoc.id;
-          recipeData['viewedAt'] = historyDoc.data()['viewedAt'];
-          history.add(recipeData);
-        }
-      }
-
-      return history;
+      await _firestore
+          .collection(_usersCollection)
+          .doc(uid)
+          .collection(_favoritesCollection)
+          .doc(recipeId)
+          .set({
+        'recipeId': recipeId,
+        'addedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération de l\'historique: $e');
-      }
-      return [];
+      throw Exception('Erreur lors de l\'ajout aux favoris: $e');
     }
   }
 
-  // Orders Methods
-  static Future<List<Map<String, dynamic>>> getUserOrders() async {
+  // Supprimer une recette des favoris
+  static Future<void> removeFromFavorites(String recipeId) async {
     try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return [];
+      final String? uid = _auth.currentUser?.uid;
+      if (uid == null) throw Exception('Utilisateur non connecté');
 
-      final ordersQuery = await _firestore
-          .collection('orders')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
+      await _firestore
+          .collection(_usersCollection)
+          .doc(uid)
+          .collection(_favoritesCollection)
+          .doc(recipeId)
+          .delete();
+    } catch (e) {
+      throw Exception('Erreur lors de la suppression des favoris: $e');
+    }
+  }
+
+  // Vérifier si une recette est dans les favoris
+  static Future<bool> isFavorite(String recipeId) async {
+    try {
+      final String? uid = _auth.currentUser?.uid;
+      if (uid == null) return false;
+
+      final DocumentSnapshot doc = await _firestore
+          .collection(_usersCollection)
+          .doc(uid)
+          .collection(_favoritesCollection)
+          .doc(recipeId)
           .get();
 
-      return ordersQuery.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
+      return doc.exists;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération des commandes: $e');
-      }
+      return false;
+    }
+  }
+
+  // Récupérer les recettes favorites
+  static Future<List<String>> getFavoriteRecipeIds() async {
+    try {
+      final String? uid = _auth.currentUser?.uid;
+      if (uid == null) return [];
+
+      final QuerySnapshot snapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(uid)
+          .collection(_favoritesCollection)
+          .orderBy('addedAt', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) => doc['recipeId'] as String).toList();
+    } catch (e) {
       return [];
     }
   }

@@ -17,6 +17,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _displayNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   bool _isLoading = false;
@@ -33,6 +34,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void dispose() {
     _displayNameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -40,6 +42,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final user = _auth.currentUser;
     if (user != null) {
       _displayNameController.text = user.displayName ?? '';
+      _emailController.text = user.email ?? '';
       
       // Charger les données depuis Firestore
       final profile = await FirestoreService.getUserProfile();
@@ -257,7 +260,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 // Email (lecture seule)
                 CustomTextField(
                   label: 'Adresse e-mail',
-                  initialValue: _auth.currentUser?.email ?? '',
+                  controller: _emailController,
                   enabled: false,
                   prefixIcon: const Icon(
                     Icons.email_outlined,
