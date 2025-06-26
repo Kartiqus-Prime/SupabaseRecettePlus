@@ -3,24 +3,32 @@ import '../../core/constants/app_colors.dart';
 
 class CustomTextField extends StatefulWidget {
   final String label;
-  final String? hint;
   final TextEditingController controller;
   final String? Function(String?)? validator;
-  final bool isPassword;
-  final TextInputType keyboardType;
+  final TextInputType? keyboardType;
+  final bool obscureText;
   final Widget? prefixIcon;
+  final Widget? suffixIcon;
+  final int? maxLines;
+  final String? hintText;
   final bool enabled;
+  final VoidCallback? onTap;
+  final bool readOnly;
 
   const CustomTextField({
     super.key,
     required this.label,
-    this.hint,
     required this.controller,
     this.validator,
-    this.isPassword = false,
-    this.keyboardType = TextInputType.text,
+    this.keyboardType,
+    this.obscureText = false,
     this.prefixIcon,
+    this.suffixIcon,
+    this.maxLines = 1,
+    this.hintText,
     this.enabled = true,
+    this.onTap,
+    this.readOnly = false,
   });
 
   @override
@@ -28,7 +36,7 @@ class CustomTextField extends StatefulWidget {
 }
 
 class _CustomTextFieldState extends State<CustomTextField> {
-  bool _obscureText = true;
+  bool _isFocused = false;
 
   @override
   Widget build(BuildContext context) {
@@ -47,56 +55,79 @@ class _CustomTextFieldState extends State<CustomTextField> {
         TextFormField(
           controller: widget.controller,
           validator: widget.validator,
-          obscureText: widget.isPassword ? _obscureText : false,
           keyboardType: widget.keyboardType,
+          obscureText: widget.obscureText,
+          maxLines: widget.maxLines,
           enabled: widget.enabled,
-          style: const TextStyle(
-            fontSize: 16,
-            color: AppColors.textPrimary,
-          ),
+          readOnly: widget.readOnly,
+          onTap: widget.onTap,
+          onFocusChange: (hasFocus) {
+            setState(() {
+              _isFocused = hasFocus;
+            });
+          },
           decoration: InputDecoration(
-            hintText: widget.hint ?? widget.label,
-            hintStyle: const TextStyle(
-              color: AppColors.textLight,
+            hintText: widget.hintText ?? widget.label,
+            hintStyle: TextStyle(
+              color: AppColors.textSecondary.withOpacity(0.6),
               fontSize: 16,
             ),
             prefixIcon: widget.prefixIcon,
-            suffixIcon: widget.isPassword
-                ? IconButton(
-                    icon: Icon(
-                      _obscureText ? Icons.visibility_off : Icons.visibility,
-                      color: AppColors.textSecondary,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureText = !_obscureText;
-                      });
-                    },
-                  )
-                : null,
+            suffixIcon: widget.suffixIcon,
             filled: true,
-            fillColor: AppColors.inputBackground,
+            fillColor: _isFocused 
+                ? AppColors.primary.withOpacity(0.05)
+                : AppColors.background,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(
+                color: AppColors.border,
+                width: 1,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(
+                color: AppColors.border,
+                width: 1,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 2,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.error),
+              borderSide: const BorderSide(
+                color: AppColors.error,
+                width: 1,
+              ),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.error, width: 2),
+              borderSide: const BorderSide(
+                color: AppColors.error,
+                width: 2,
+              ),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: AppColors.border.withOpacity(0.5),
+                width: 1,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+          style: const TextStyle(
+            fontSize: 16,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
