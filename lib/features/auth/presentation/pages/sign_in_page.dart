@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/validators.dart';
@@ -22,7 +21,6 @@ class _SignInPageState extends State<SignInPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final SupabaseClient _supabase = Supabase.instance.client;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   bool _isLoading = false;
   bool _isGoogleLoading = false;
@@ -49,9 +47,13 @@ class _SignInPageState extends State<SignInPage> {
         password: _passwordController.text,
       );
 
-      // Redirection vers la page Shorts après connexion réussie
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connexion réussie !'),
+            backgroundColor: AppColors.success,
+          ),
+        );
       }
     } on AuthException catch (e) {
       setState(() {
@@ -75,37 +77,18 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      // Forcer la déconnexion pour permettre la sélection de compte
-      await _googleSignIn.signOut();
-
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        setState(() {
-          _isGoogleLoading = false;
-        });
-        return;
-      }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      await _supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: googleAuth.idToken!,
-        accessToken: googleAuth.accessToken,
+      // Utiliser la méthode OAuth native de Supabase
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'io.supabase.recetteplus://login-callback/',
       );
-
-      // Redirection vers la page Shorts après connexion réussie
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-      }
     } on AuthException catch (e) {
       setState(() {
         _errorMessage = _getErrorMessage(e.message);
       });
     } catch (e) {
       setState(() {
-        _errorMessage = AppStrings.unknownError;
+        _errorMessage = 'Erreur de connexion Google. Veuillez réessayer.';
       });
     } finally {
       setState(() {
@@ -282,8 +265,7 @@ class _SignInPageState extends State<SignInPage> {
                 // Connexion Google
                 SocialButton(
                   text: AppStrings.signInWithGoogle,
-                  iconPath:
-                      'https://blobs.vusercontent.net/blob/google-logo-ePwwr2o9C1PaCLZNuLkE9VgHSZA3ah.svg',
+                  iconPath: 'assets/images/google-logo.svg',
                   onPressed: _signInWithGoogle,
                   isLoading: _isGoogleLoading,
                 ),

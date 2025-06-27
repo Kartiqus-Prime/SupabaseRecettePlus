@@ -29,6 +29,7 @@ class SocialButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
         ),
         child: isLoading
             ? const SizedBox(
@@ -42,7 +43,7 @@ class SocialButton extends StatelessWidget {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SvgPicture.network(
+                  SvgPicture.asset(
                     iconPath,
                     height: 20,
                     width: 20,

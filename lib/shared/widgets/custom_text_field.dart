@@ -3,32 +3,32 @@ import '../../core/constants/app_colors.dart';
 
 class CustomTextField extends StatefulWidget {
   final String label;
-  final TextEditingController controller;
+  final String? hint;
+  final TextEditingController? controller;
   final String? Function(String?)? validator;
-  final TextInputType? keyboardType;
+  final TextInputType keyboardType;
   final bool isPassword;
+  final bool enabled;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
-  final int? maxLines;
-  final String? hintText;
-  final bool enabled;
+  final int maxLines;
   final VoidCallback? onTap;
-  final bool readOnly;
+  final Function(String)? onChanged;
 
   const CustomTextField({
     super.key,
     required this.label,
-    required this.controller,
+    this.hint,
+    this.controller,
     this.validator,
-    this.keyboardType,
+    this.keyboardType = TextInputType.text,
     this.isPassword = false,
+    this.enabled = true,
     this.prefixIcon,
     this.suffixIcon,
     this.maxLines = 1,
-    this.hintText,
-    this.enabled = true,
     this.onTap,
-    this.readOnly = false,
+    this.onChanged,
   });
 
   @override
@@ -64,14 +64,18 @@ class _CustomTextFieldState extends State<CustomTextField> {
             validator: widget.validator,
             keyboardType: widget.keyboardType,
             obscureText: widget.isPassword ? _obscureText : false,
-            maxLines: widget.maxLines,
             enabled: widget.enabled,
-            readOnly: widget.readOnly,
+            maxLines: widget.maxLines,
             onTap: widget.onTap,
+            onChanged: widget.onChanged,
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
             decoration: InputDecoration(
-              hintText: widget.hintText ?? widget.label,
-              hintStyle: TextStyle(
-                color: AppColors.textSecondary.withOpacity(0.6),
+              hintText: widget.hint ?? widget.label,
+              hintStyle: const TextStyle(
+                color: AppColors.textSecondary,
                 fontSize: 16,
               ),
               prefixIcon: widget.prefixIcon,
@@ -89,59 +93,35 @@ class _CustomTextFieldState extends State<CustomTextField> {
                     )
                   : widget.suffixIcon,
               filled: true,
-              fillColor: _isFocused 
-                  ? AppColors.primary.withOpacity(0.05)
-                  : AppColors.background,
+              fillColor: widget.enabled ? AppColors.surface : AppColors.borderLight,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppColors.border,
-                  width: 1,
-                ),
+                borderSide: const BorderSide(color: AppColors.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppColors.border,
-                  width: 1,
-                ),
+                borderSide: const BorderSide(color: AppColors.border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.primary,
-                  width: 2,
-                ),
+                borderSide: const BorderSide(color: AppColors.primary, width: 2),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.error,
-                  width: 1,
-                ),
+                borderSide: const BorderSide(color: AppColors.error),
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.error,
-                  width: 2,
-                ),
+                borderSide: const BorderSide(color: AppColors.error, width: 2),
               ),
               disabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppColors.border.withOpacity(0.5),
-                  width: 1,
-                ),
+                borderSide: const BorderSide(color: AppColors.borderLight),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
-            ),
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppColors.textPrimary,
             ),
           ),
         ),
