@@ -9,10 +9,9 @@ class SupabaseOptions {
   static const String favoritesTable = 'favorites';
   static const String historyTable = 'history';
   static const String ordersTable = 'orders';
-  static const String videosTable = 'videos';
   
   // Storage buckets
+  static const String avatarsBucket = 'avatars';
   static const String recipeImagesBucket = 'recipe-images';
   static const String productImagesBucket = 'product-images';
-  static const String userAvatarsBucket = 'user-avatars';
 }

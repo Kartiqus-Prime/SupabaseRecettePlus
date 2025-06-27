@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_options.dart';
 import 'auth_page.dart';
-import 'features/auth/presentation/pages/welcome_page.dart';
 import 'features/recipes/presentation/pages/recipes_page.dart';
 import 'features/products/presentation/pages/products_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
@@ -28,6 +27,7 @@ class RecettePlusApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.orange,
         fontFamily: 'SFProDisplay',
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
@@ -45,16 +45,18 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
           );
         }
 
         final session = snapshot.hasData ? snapshot.data!.session : null;
-
+        
         if (session != null) {
           return const MainNavigationPage();
         } else {
-          return const WelcomePage();
+          return const AuthPage();
         }
       },
     );
@@ -77,18 +79,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     const ProfilePage(),
   ];
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
+        items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_menu),
             label: 'Recettes',
@@ -102,6 +104,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             label: 'Profil',
           ),
         ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.orange,
+        onTap: _onItemTapped,
       ),
     );
   }
