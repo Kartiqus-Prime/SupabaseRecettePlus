@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -20,253 +19,142 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> _loadHistory() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final history = await SupabaseService.getUserHistory();
-      if (mounted) {
-        setState(() {
-          _history = history;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _history = history;
+        _isLoading = false;
+      });
     } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur lors du chargement: $e')),
+          SnackBar(
+            content: Text('Erreur lors du chargement de l\'historique: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    }
-  }
-
-  String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return '';
-    
-    try {
-      DateTime date;
-      if (timestamp is String) {
-        date = DateTime.parse(timestamp);
-      } else {
-        date = timestamp.toDate();
-      }
-      
-      final now = DateTime.now();
-      final difference = now.difference(date);
-      
-      if (difference.inDays == 0) {
-        return 'Aujourd\'hui';
-      } else if (difference.inDays == 1) {
-        return 'Hier';
-      } else if (difference.inDays < 7) {
-        return 'Il y a ${difference.inDays} jours';
-      } else {
-        return '${date.day}/${date.month}/${date.year}';
-      }
-    } catch (e) {
-      return '';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Historique'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          if (_history.isNotEmpty)
-            IconButton(
-              onPressed: () {
-                // TODO: Clear history
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité à venir')),
-                );
-              },
-              icon: const Icon(Icons.clear_all),
-            ),
-        ],
+        backgroundColor: Colors.orange,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _history.isEmpty
-              ? _buildEmptyState()
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.history,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Aucun historique',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: _loadHistory,
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
                     itemCount: _history.length,
                     itemBuilder: (context, index) {
-                      final historyItem = _history[index];
-                      final recipe = historyItem['recipes'] as Map<String, dynamic>?;
-                      return _buildHistoryCard(historyItem, recipe);
+                      final item = _history[index];
+                      final recipe = item['recipes'] as Map<String, dynamic>?;
+                      
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: ListTile(
+                          leading: recipe?['image_url'] != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    recipe!['image_url'],
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        width: 60,
+                                        height: 60,
+                                        color: Colors.grey[300],
+                                        child: const Icon(Icons.restaurant),
+                                      );
+                                    },
+                                  ),
+                                )
+                              : Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.restaurant),
+                                ),
+                          title: Text(
+                            recipe?['title'] ?? 'Recette supprimée',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (recipe?['description'] != null)
+                                Text(
+                                  recipe!['description'],
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Consulté le ${_formatDate(item['viewed_at'])}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: recipe != null
+                              ? () {
+                                  // Navigation vers la page de détail de la recette
+                                  // Navigator.push(context, MaterialPageRoute(...));
+                                }
+                              : null,
+                        ),
+                      );
                     },
                   ),
                 ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Aucun historique',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Vos recettes consultées apparaîtront ici',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHistoryCard(Map<String, dynamic> historyItem, Map<String, dynamic>? recipe) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // TODO: Navigate to recipe detail
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ouvrir: ${recipe?['title'] ?? 'Recette'}')),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Image de la recette
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppColors.primary.withOpacity(0.1),
-                ),
-                child: recipe?['image_url'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          recipe!['image_url'],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.restaurant,
-                              color: AppColors.primary,
-                              size: 40,
-                            );
-                          },
-                        ),
-                      )
-                    : const Icon(
-                        Icons.restaurant,
-                        color: AppColors.primary,
-                        size: 40,
-                      ),
-              ),
-              
-              const SizedBox(width: 16),
-              
-              // Informations de la recette
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      recipe?['title'] ?? 'Recette sans titre',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      recipe?['description'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            recipe?['category'] ?? 'Autre',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          _formatDate(historyItem['viewed_at']),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  String _formatDate(String? dateString) {
+    if (dateString == null) return '';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year} à ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
   }
 }

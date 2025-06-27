@@ -1,5 +1,5 @@
 name: recette_plus
-description: "Une application Flutter pour les recettes et produits alimentaires"
+description: "Une application de recettes et de produits alimentaires"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -12,28 +12,30 @@ dependencies:
     sdk: flutter
   
   # Supabase
-  supabase_flutter: ^2.8.0
+  supabase_flutter: ^2.5.6
   
   # UI & Navigation
   cupertino_icons: ^1.0.6
-  flutter_svg: ^2.0.10+1
   
   # Authentication
   google_sign_in: ^6.2.1
   
   # Image handling
-  image_picker: ^1.1.2
-  cached_network_image: ^3.4.1
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
   
-  # State management & utilities
+  # HTTP & Network
+  http: ^1.2.1
+  
+  # State Management
   provider: ^6.1.2
-  shared_preferences: ^2.3.2
   
-  # HTTP & Networking
-  http: ^1.2.2
-  
-  # Date & Time
+  # Utils
   intl: ^0.19.0
+  shared_preferences: ^2.2.2
+  
+  # UI Components
+  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   flutter_test:
@@ -51,7 +53,6 @@ flutter:
     - family: SFProDisplay
       fonts:
         - asset: assets/fonts/SFProDisplay-Regular.ttf
-          weight: 400
         - asset: assets/fonts/SFProDisplay-Medium.ttf
           weight: 500
         - asset: assets/fonts/SFProDisplay-Semibold.ttf

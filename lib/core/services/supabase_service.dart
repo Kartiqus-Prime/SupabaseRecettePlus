@@ -116,8 +116,7 @@ class SupabaseService {
       await _client
           .from(SupabaseOptions.favoritesTable)
           .delete()
-          .eq('user_id', userId)
-          .eq('recipe_id', recipeId);
+          .match({'user_id': userId, 'recipe_id': recipeId});
 
       if (kDebugMode) {
         print('✅ Recette supprimée des favoris');
@@ -161,8 +160,7 @@ class SupabaseService {
       final response = await _client
           .from(SupabaseOptions.favoritesTable)
           .select('id')
-          .eq('user_id', userId)
-          .eq('recipe_id', recipeId)
+          .match({'user_id': userId, 'recipe_id': recipeId})
           .limit(1);
 
       return response.isNotEmpty;
@@ -261,8 +259,7 @@ class SupabaseService {
       await _client
           .from(SupabaseOptions.historyTable)
           .delete()
-          .eq('user_id', userId)
-          .eq('recipe_id', recipeId);
+          .match({'user_id': userId, 'recipe_id': recipeId});
 
       // Ajouter la nouvelle entrée
       await _client.from(SupabaseOptions.historyTable).insert({
