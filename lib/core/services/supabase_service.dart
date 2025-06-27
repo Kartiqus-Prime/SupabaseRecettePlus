@@ -182,7 +182,7 @@ class SupabaseService {
       final baseQuery = _client.from(SupabaseOptions.recipesTable).select();
 
       // Build filters
-      final filters = <String, dynamic>{
+      final filters = <String, Object>{
         'is_active': true,
       };
 
@@ -218,6 +218,7 @@ class SupabaseService {
   }
 
   // Products Methods
+  // ...existing code...
   static Future<List<Map<String, dynamic>>> getProducts({
     String? category,
     String? searchQuery,
@@ -228,7 +229,7 @@ class SupabaseService {
       final baseQuery = _client.from(SupabaseOptions.productsTable).select();
 
       // Build filters
-      final filters = <String, dynamic>{
+      final filters = <String, Object>{
         'is_active': true,
       };
 
@@ -239,8 +240,7 @@ class SupabaseService {
       // Execute the query with all conditions
       final response = await baseQuery
           .match(filters)
-          .order('name',
-              ascending: true) // Assuming 'name' is usually sorted ascending
+          .order('name', ascending: true)
           .limit(limit);
       List<Map<String, dynamic>> products =
           List<Map<String, dynamic>>.from(response);
@@ -261,6 +261,7 @@ class SupabaseService {
       return [];
     }
   }
+// ...existing code...
 
   // User History Methods
   static Future<void> addToHistory(String recipeId) async {

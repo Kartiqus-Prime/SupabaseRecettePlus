@@ -146,12 +146,14 @@ class _AuthPageState extends State<AuthPage> {
 
       if (response.user != null) {
         // Créer ou mettre à jour le profil utilisateur
-        final existingProfile = await SupabaseService.getUserProfile(response.user!.id);
-        
+        final existingProfile =
+            await SupabaseService.getUserProfile(response.user!.id);
+
         if (existingProfile == null) {
           await SupabaseService.createUserProfile(
             uid: response.user!.id,
-            displayName: response.user!.userMetadata?['full_name'] ?? 'Utilisateur',
+            displayName:
+                response.user!.userMetadata?['full_name'] ?? 'Utilisateur',
             email: response.user!.email ?? '',
           );
         }
@@ -255,7 +257,9 @@ class _AuthPageState extends State<AuthPage> {
 
               // Sign in/up button
               ElevatedButton(
-                onPressed: _isLoading ? null : (_isSignUp ? _signUpWithEmail : _signInWithEmail),
+                onPressed: _isLoading
+                    ? null
+                    : (_isSignUp ? _signUpWithEmail : _signInWithEmail),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
                   foregroundColor: Colors.white,
@@ -268,7 +272,8 @@ class _AuthPageState extends State<AuthPage> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
                         _isSignUp ? 'Créer le compte' : 'Se connecter',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
               const SizedBox(height: 16),
@@ -277,7 +282,7 @@ class _AuthPageState extends State<AuthPage> {
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _signInWithGoogle,
                 icon: Image.asset(
-                  'assets/images/google-logo.png',
+                  'assets/images/google-logo.svg',
                   height: 20,
                   width: 20,
                 ),
