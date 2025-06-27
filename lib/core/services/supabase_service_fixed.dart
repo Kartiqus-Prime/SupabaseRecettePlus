@@ -182,7 +182,7 @@ class SupabaseService {
       final baseQuery = _client.from(SupabaseOptions.recipesTable).select();
 
       // Build filters
-      final filters = <String, dynamic>{
+      final filters = <String, Object>{
         'is_active': true,
       };
 
@@ -228,7 +228,7 @@ class SupabaseService {
       final baseQuery = _client.from(SupabaseOptions.productsTable).select();
 
       // Build filters
-      final filters = <String, dynamic>{
+      final filters = <String, Object>{
         'is_active': true,
       };
 
@@ -237,11 +237,8 @@ class SupabaseService {
       }
 
       // Execute the query with all conditions
-      final response = await baseQuery
-          .match(filters)
-          .order('name',
-              ascending: true) // Assuming 'name' is usually sorted ascending
-          .limit(limit);
+      final response =
+          await baseQuery.match(filters).order('name').limit(limit);
       List<Map<String, dynamic>> products =
           List<Map<String, dynamic>>.from(response);
 
