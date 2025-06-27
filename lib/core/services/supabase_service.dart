@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 import '../../supabase_options.dart';
 
 class SupabaseService {
@@ -138,7 +139,7 @@ class SupabaseService {
           .from(SupabaseOptions.favoritesTable)
           .select('''
             *,
-            ${SupabaseOptions.recipesTable}:recipe_id (*)
+            recipes:recipe_id (*)
           ''')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
@@ -285,7 +286,7 @@ class SupabaseService {
           .from(SupabaseOptions.historyTable)
           .select('''
             *,
-            ${SupabaseOptions.recipesTable}:recipe_id (*)
+            recipes:recipe_id (*)
           ''')
           .eq('user_id', userId)
           .order('viewed_at', ascending: false)
@@ -325,7 +326,7 @@ class SupabaseService {
   static Future<String?> uploadFile({
     required String bucket,
     required String path,
-    required List<int> fileBytes,
+    required Uint8List fileBytes,
     String? contentType,
   }) async {
     try {

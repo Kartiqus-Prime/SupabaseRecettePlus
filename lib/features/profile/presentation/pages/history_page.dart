@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/supabase_service.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -25,7 +25,7 @@ class _HistoryPageState extends State<HistoryPage> {
     });
 
     try {
-      final history = await FirestoreService.getUserHistory();
+      final history = await SupabaseService.getUserHistory();
       if (mounted) {
         setState(() {
           _history = history;
@@ -48,7 +48,13 @@ class _HistoryPageState extends State<HistoryPage> {
     if (timestamp == null) return '';
     
     try {
-      final date = timestamp.toDate();
+      DateTime date;
+      if (timestamp is String) {
+        date = DateTime.parse(timestamp);
+      } else {
+        date = timestamp.toDate();
+      }
+      
       final now = DateTime.now();
       final difference = now.difference(date);
       
@@ -98,8 +104,9 @@ class _HistoryPageState extends State<HistoryPage> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _history.length,
                     itemBuilder: (context, index) {
-                      final recipe = _history[index];
-                      return _buildHistoryCard(recipe);
+                      final historyItem = _history[index];
+                      final recipe = historyItem['recipes'] as Map<String, dynamic>?;
+                      return _buildHistoryCard(historyItem, recipe);
                     },
                   ),
                 ),
@@ -139,7 +146,7 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _buildHistoryCard(Map<String, dynamic> recipe) {
+  Widget _buildHistoryCard(Map<String, dynamic> historyItem, Map<String, dynamic>? recipe) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -158,7 +165,7 @@ class _HistoryPageState extends State<HistoryPage> {
         onTap: () {
           // TODO: Navigate to recipe detail
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ouvrir: ${recipe['title']}')),
+            SnackBar(content: Text('Ouvrir: ${recipe?['title'] ?? 'Recette'}')),
           );
         },
         child: Padding(
@@ -173,11 +180,11 @@ class _HistoryPageState extends State<HistoryPage> {
                   borderRadius: BorderRadius.circular(12),
                   color: AppColors.primary.withOpacity(0.1),
                 ),
-                child: recipe['imageUrl'] != null
+                child: recipe?['image_url'] != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.network(
-                          recipe['imageUrl'],
+                          recipe!['image_url'],
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return const Icon(
@@ -203,7 +210,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      recipe['title'] ?? 'Recette sans titre',
+                      recipe?['title'] ?? 'Recette sans titre',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -214,7 +221,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      recipe['description'] ?? '',
+                      recipe?['description'] ?? '',
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
@@ -235,7 +242,7 @@ class _HistoryPageState extends State<HistoryPage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            recipe['category'] ?? 'Autre',
+                            recipe?['category'] ?? 'Autre',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.primary,
@@ -245,7 +252,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         ),
                         const Spacer(),
                         Text(
-                          _formatDate(recipe['viewedAt']),
+                          _formatDate(historyItem['viewed_at']),
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,

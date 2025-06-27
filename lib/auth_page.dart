@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/foundation.dart'; // Import kDebugMode
+import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'core/services/supabase_service.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -14,39 +15,39 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   String? _errorMessage;
 
   Future<void> _signInWithEmailAndPassword() async {
     setState(() {
-      _errorMessage = null; // Clear previous errors
+      _errorMessage = null;
     });
+    
     if (kDebugMode) {
       print("AuthPage: Tentative de connexion par email/mot de passe...");
       print("AuthPage: Email: ${_emailController.text}");
     }
+    
     try {
-      final UserCredential userCredential = await _auth
-          .signInWithEmailAndPassword(
-            email: _emailController.text,
-            password: _passwordController.text,
-          );
-      if (kDebugMode) {
-        print(
-          "AuthPage: ✅ Connexion réussie pour ${userCredential.user?.email}",
-        );
+      final response = await _supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      
+      if (response.user != null) {
+        if (kDebugMode) {
+          print("AuthPage: ✅ Connexion réussie pour ${response.user?.email}");
+        }
+        
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        }
       }
-      // Navigate to home page and remove all previous routes
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-      }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       if (kDebugMode) {
-        print(
-          "AuthPage: ❌ Erreur de connexion Firebase: ${e.code} - ${e.message}",
-        );
+        print("AuthPage: ❌ Erreur de connexion Supabase: ${e.message}");
       }
       setState(() {
         _errorMessage = e.message;
@@ -63,32 +64,39 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> _registerWithEmailAndPassword() async {
     setState(() {
-      _errorMessage = null; // Clear previous errors
+      _errorMessage = null;
     });
+    
     if (kDebugMode) {
       print("AuthPage: Tentative d'inscription par email/mot de passe...");
       print("AuthPage: Email: ${_emailController.text}");
     }
+    
     try {
-      final UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(
-            email: _emailController.text,
-            password: _passwordController.text,
-          );
-      if (kDebugMode) {
-        print(
-          "AuthPage: ✅ Inscription réussie pour ${userCredential.user?.email}",
+      final response = await _supabase.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      
+      if (response.user != null) {
+        if (kDebugMode) {
+          print("AuthPage: ✅ Inscription réussie pour ${response.user?.email}");
+        }
+        
+        // Créer le profil utilisateur
+        await SupabaseService.createUserProfile(
+          uid: response.user!.id,
+          displayName: response.user!.email?.split('@')[0] ?? 'Utilisateur',
+          email: response.user!.email!,
         );
+        
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        }
       }
-      // Navigate to home page and remove all previous routes
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-      }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       if (kDebugMode) {
-        print(
-          "AuthPage: ❌ Erreur d'inscription Firebase: ${e.code} - ${e.message}",
-        );
+        print("AuthPage: ❌ Erreur d'inscription Supabase: ${e.message}");
       }
       setState(() {
         _errorMessage = e.message;
@@ -105,15 +113,16 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> _signInWithGoogle() async {
     setState(() {
-      _errorMessage = null; // Clear previous errors
+      _errorMessage = null;
     });
+    
     if (kDebugMode) {
       print("AuthPage: Tentative de connexion avec Google...");
     }
+    
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        // User cancelled the sign-in
         if (kDebugMode) {
           print("AuthPage: ❌ Connexion Google annulée par l'utilisateur.");
         }
@@ -121,48 +130,45 @@ class _AuthPageState extends State<AuthPage> {
       }
 
       if (kDebugMode) {
-        print(
-          "AuthPage: ✅ Utilisateur Google sélectionné: ${googleUser.email}",
-        );
+        print("AuthPage: ✅ Utilisateur Google sélectionné: ${googleUser.email}");
       }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
       if (kDebugMode) {
-        print(
-          "AuthPage: Access Token Google: ${googleAuth.accessToken != null ? '✅ Obtenu' : '❌ Manquant'}",
-        );
-        print(
-          "AuthPage: ID Token Google: ${googleAuth.idToken != null ? '✅ Obtenu' : '❌ Manquant'}",
-        );
+        print("AuthPage: Access Token Google: ${googleAuth.accessToken != null ? '✅ Obtenu' : '❌ Manquant'}");
+        print("AuthPage: ID Token Google: ${googleAuth.idToken != null ? '✅ Obtenu' : '❌ Manquant'}");
       }
 
-      final credential = GoogleAuthProvider.credential(
+      final response = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
         accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
       );
 
-      if (kDebugMode) {
-        print("AuthPage: Création du credential Firebase...");
+      if (response.user != null) {
+        if (kDebugMode) {
+          print("AuthPage: ✅ Connexion Supabase avec Google réussie pour ${response.user?.email}");
+        }
+        
+        // Vérifier si le profil existe, sinon le créer
+        final existingProfile = await SupabaseService.getUserProfile(response.user!.id);
+        if (existingProfile == null) {
+          await SupabaseService.createUserProfile(
+            uid: response.user!.id,
+            displayName: response.user!.userMetadata?['full_name'] ?? 
+                        response.user!.email?.split('@')[0] ?? 'Utilisateur',
+            email: response.user!.email!,
+          );
+        }
+        
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        }
       }
-      final UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
-
+    } on AuthException catch (e) {
       if (kDebugMode) {
-        print(
-          "AuthPage: ✅ Connexion Firebase avec Google réussie pour ${userCredential.user?.email}",
-        );
-      }
-      // Navigate to home page and remove all previous routes
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-      }
-    } on FirebaseAuthException catch (e) {
-      if (kDebugMode) {
-        print(
-          "AuthPage: ❌ Erreur Firebase Auth (Google): ${e.code} - ${e.message}",
-        );
+        print("AuthPage: ❌ Erreur Supabase Auth (Google): ${e.message}");
       }
       setState(() {
         _errorMessage = e.message;

@@ -1,20 +1,26 @@
 class SupabaseOptions {
-  static const String url = 'https://your-project-ref.supabase.co';
-  static const String anonKey = 'your-anon-key';
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'YOUR_SUPABASE_URL_HERE',
+  );
   
-  // Configuration pour l'authentification
-  static const String redirectUrl = 'io.supabase.recetteplus://login-callback/';
-  
-  // Configuration pour le stockage
-  static const String storageBucket = 'recette-plus-storage';
-  
-  // Tables de la base de données
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'YOUR_SUPABASE_ANON_KEY_HERE',
+  );
+
+  // Table names
   static const String usersTable = 'users';
   static const String recipesTable = 'recipes';
   static const String productsTable = 'products';
   static const String favoritesTable = 'favorites';
   static const String historyTable = 'history';
   static const String ordersTable = 'orders';
+  static const String categoriesTable = 'categories';
   static const String videosTable = 'videos';
-  static const String cartItemsTable = 'cart_items';
+
+  // Storage buckets
+  static const String recipeImagesBucket = 'recipe-images';
+  static const String productImagesBucket = 'product-images';
+  static const String userAvatarsBucket = 'user-avatars';
 }
