@@ -2,3 +2,8 @@ ios/*
 web/*
 firebaseRules.txt
 mobile.md
+android/*
+assets/*
+.env
+.env.example
+db.json
