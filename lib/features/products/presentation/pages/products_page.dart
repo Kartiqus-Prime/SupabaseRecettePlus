@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/services/cart_service.dart';
+import '../../../../core/utils/currency_utils.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -79,7 +80,7 @@ class _ProductsPageState extends State<ProductsPage> {
         'id': '1',
         'name': 'Huile d\'olive extra vierge',
         'category': 'Huiles',
-        'price': 12.99,
+        'price': 4250.0, // Prix en FCFA
         'rating': 4.8,
         'image': 'https://images.pexels.com/photos/33783/olive-oil-salad-dressing-cooking-olive.jpg',
         'description': 'Huile d\'olive premium de première pression à froid',
@@ -89,7 +90,7 @@ class _ProductsPageState extends State<ProductsPage> {
         'id': '2',
         'name': 'Set d\'épices du monde',
         'category': 'Épices',
-        'price': 24.99,
+        'price': 16400.0, // Prix en FCFA
         'rating': 4.6,
         'image': 'https://images.pexels.com/photos/1340116/pexels-photo-1340116.jpeg',
         'description': 'Collection de 12 épices exotiques',
@@ -99,7 +100,7 @@ class _ProductsPageState extends State<ProductsPage> {
         'id': '3',
         'name': 'Couteau de chef professionnel',
         'category': 'Ustensiles',
-        'price': 89.99,
+        'price': 59000.0, // Prix en FCFA
         'rating': 4.9,
         'image': 'https://images.pexels.com/photos/2284166/pexels-photo-2284166.jpeg',
         'description': 'Couteau en acier inoxydable de haute qualité',
@@ -109,7 +110,7 @@ class _ProductsPageState extends State<ProductsPage> {
         'id': '4',
         'name': 'Mixeur haute performance',
         'category': 'Électroménager',
-        'price': 199.99,
+        'price': 131000.0, // Prix en FCFA
         'rating': 4.7,
         'image': 'https://images.pexels.com/photos/4226796/pexels-photo-4226796.jpeg',
         'description': 'Mixeur puissant pour smoothies et soupes',
@@ -119,7 +120,7 @@ class _ProductsPageState extends State<ProductsPage> {
         'id': '5',
         'name': 'Livre "Cuisine du monde"',
         'category': 'Livres',
-        'price': 29.99,
+        'price': 19700.0, // Prix en FCFA
         'rating': 4.5,
         'image': 'https://images.pexels.com/photos/1370295/pexels-photo-1370295.jpeg',
         'description': '200 recettes traditionnelles du monde entier',
@@ -129,7 +130,7 @@ class _ProductsPageState extends State<ProductsPage> {
         'id': '6',
         'name': 'Miel bio de lavande',
         'category': 'Bio',
-        'price': 15.99,
+        'price': 10500.0, // Prix en FCFA
         'rating': 4.8,
         'image': 'https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg',
         'description': 'Miel artisanal bio récolté en Provence',
@@ -152,12 +153,6 @@ class _ProductsPageState extends State<ProductsPage> {
                                .contains(_searchController.text.toLowerCase());
       return matchesCategory && matchesSearch;
     }).toList();
-  }
-
-  String _formatPrice(double price) {
-    // Conversion EUR vers FCFA (1 EUR ≈ 655.957 FCFA)
-    final priceInFCFA = price * 655.957;
-    return '${priceInFCFA.toStringAsFixed(0)} FCFA';
   }
 
   Future<void> _addToCart(Map<String, dynamic> product) async {
@@ -197,31 +192,33 @@ class _ProductsPageState extends State<ProductsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(isDark),
       body: SafeArea(
         child: Column(
           children: [
             // Header avec recherche
             Container(
               padding: const EdgeInsets.all(20),
-              color: Colors.white,
+              color: AppColors.getSurface(isDark),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Produits',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: AppColors.getTextPrimary(isDark),
                     ),
                   ),
                   const SizedBox(height: 16),
                   // Barre de recherche
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.background,
+                      color: AppColors.getBackground(isDark),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: TextField(
@@ -233,11 +230,13 @@ class _ProductsPageState extends State<ProductsPage> {
                         }
                       },
                       onSubmitted: (value) => _loadProducts(),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: AppColors.getTextPrimary(isDark)),
+                      decoration: InputDecoration(
                         hintText: 'Rechercher un produit...',
-                        prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
+                        hintStyle: TextStyle(color: AppColors.getTextSecondary(isDark)),
+                        prefixIcon: Icon(Icons.search, color: AppColors.getTextSecondary(isDark)),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
                   ),
@@ -248,7 +247,7 @@ class _ProductsPageState extends State<ProductsPage> {
             // Filtres par catégorie
             Container(
               height: 60,
-              color: Colors.white,
+              color: AppColors.getSurface(isDark),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -268,10 +267,10 @@ class _ProductsPageState extends State<ProductsPage> {
                         });
                         _loadProducts();
                       },
-                      backgroundColor: Colors.grey[100],
+                      backgroundColor: AppColors.getBackground(isDark),
                       selectedColor: AppColors.primary.withOpacity(0.2),
                       labelStyle: TextStyle(
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                        color: isSelected ? AppColors.primary : AppColors.getTextSecondary(isDark),
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
                       side: BorderSide(
@@ -288,21 +287,21 @@ class _ProductsPageState extends State<ProductsPage> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredProducts.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
                                 Icons.search_off,
                                 size: 64,
-                                color: AppColors.textSecondary,
+                                color: AppColors.getTextSecondary(isDark),
                               ),
-                              SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               Text(
                                 'Aucun produit trouvé',
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: AppColors.textSecondary,
+                                  color: AppColors.getTextSecondary(isDark),
                                 ),
                               ),
                             ],
@@ -321,7 +320,7 @@ class _ProductsPageState extends State<ProductsPage> {
                             itemCount: _filteredProducts.length,
                             itemBuilder: (context, index) {
                               final product = _filteredProducts[index];
-                              return _buildProductCard(product);
+                              return _buildProductCard(product, isDark);
                             },
                           ),
                         ),
@@ -332,16 +331,16 @@ class _ProductsPageState extends State<ProductsPage> {
     );
   }
   
-  Widget _buildProductCard(Map<String, dynamic> product) {
+  Widget _buildProductCard(Map<String, dynamic> product, bool isDark) {
     final isInStock = product['in_stock'] ?? true;
     
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.getCardBackground(isDark),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: AppColors.getShadow(isDark),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -431,10 +430,10 @@ class _ProductsPageState extends State<ProductsPage> {
                   children: [
                     Text(
                       product['name'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: AppColors.getTextPrimary(isDark),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -442,9 +441,9 @@ class _ProductsPageState extends State<ProductsPage> {
                     const SizedBox(height: 4),
                     Text(
                       product['description'] ?? '',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: AppColors.getTextSecondary(isDark),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -457,7 +456,7 @@ class _ProductsPageState extends State<ProductsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _formatPrice(product['price']?.toDouble() ?? 0.0),
+                              CurrencyUtils.formatPrice(product['price']?.toDouble() ?? 0.0),
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -475,9 +474,9 @@ class _ProductsPageState extends State<ProductsPage> {
                                   const SizedBox(width: 2),
                                   Text(
                                     product['rating'].toString(),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: AppColors.textSecondary,
+                                      color: AppColors.getTextSecondary(isDark),
                                     ),
                                   ),
                                 ],
@@ -493,12 +492,12 @@ class _ProductsPageState extends State<ProductsPage> {
                             decoration: BoxDecoration(
                               color: isInStock 
                                   ? AppColors.primary 
-                                  : Colors.grey[300],
+                                  : AppColors.getTextSecondary(isDark),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               Icons.add_shopping_cart,
-                              color: isInStock ? Colors.white : Colors.grey[600],
+                              color: Colors.white,
                               size: 18,
                             ),
                           ),

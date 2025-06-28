@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 import 'features/auth/presentation/pages/welcome_page.dart';
 import 'features/recipes/presentation/pages/recipes_page.dart';
 import 'features/products/presentation/pages/products_page.dart';
@@ -8,6 +9,7 @@ import 'features/profile/presentation/pages/profile_page.dart';
 import 'features/cart/presentation/pages/cart_page.dart';
 import 'features/videos/presentation/pages/videos_page.dart';
 import 'core/constants/app_colors.dart';
+import 'core/services/theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,32 +82,96 @@ class RecettePlusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Recette Plus',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-          secondary: AppColors.secondary,
-          surface: AppColors.surface,
-          background: AppColors.background,
-          error: AppColors.error,
+    return ChangeNotifierProvider(
+      create: (context) => ThemeService()..loadTheme(),
+      child: Consumer<ThemeService>(
+        builder: (context, themeService, child) {
+          return MaterialApp(
+            title: 'Recette Plus',
+            themeMode: themeService.themeMode,
+            theme: _buildLightTheme(),
+            darkTheme: _buildDarkTheme(),
+            home: const AuthWrapper(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
+      ),
+    );
+  }
+
+  ThemeData _buildLightTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        brightness: Brightness.light,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        surface: AppColors.surface,
+        background: AppColors.background,
+        error: AppColors.error,
+      ),
+      fontFamily: 'SFProDisplay',
+      scaffoldBackgroundColor: AppColors.background,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        titleTextStyle: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
         ),
-        useMaterial3: true,
-        fontFamily: 'SFProDisplay',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          iconTheme: IconThemeData(color: AppColors.textPrimary),
-          titleTextStyle: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
         ),
       ),
-      home: const AuthWrapper(),
-      debugShowCheckedModeBanner: false,
+      cardTheme: CardTheme(
+        color: AppColors.cardBackground,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        brightness: Brightness.dark,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        surface: AppColors.surfaceDark,
+        background: AppColors.backgroundDark,
+        error: AppColors.error,
+      ),
+      fontFamily: 'SFProDisplay',
+      scaffoldBackgroundColor: AppColors.backgroundDark,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.textPrimaryDark),
+        titleTextStyle: TextStyle(
+          color: AppColors.textPrimaryDark,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+      ),
+      cardTheme: CardTheme(
+        color: AppColors.cardBackgroundDark,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 }
@@ -146,9 +212,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     if (!_isInitialized) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.getBackground(isDark),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -172,10 +240,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Initialisation...',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: AppColors.getTextSecondary(isDark),
                   fontSize: 16,
                 ),
               ),
@@ -190,20 +258,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: AppColors.background,
+          return Scaffold(
+            backgroundColor: AppColors.getBackground(isDark),
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(
+                  const CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     'Vérification de l\'authentification...',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: AppColors.getTextSecondary(isDark),
                       fontSize: 16,
                     ),
                   ),
@@ -257,6 +325,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
@@ -264,10 +334,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.getSurface(isDark),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: AppColors.getShadow(isDark),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -306,7 +376,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           ],
           currentIndex: _selectedIndex,
           selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
+          unselectedItemColor: AppColors.getTextSecondary(isDark),
           selectedLabelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 12,

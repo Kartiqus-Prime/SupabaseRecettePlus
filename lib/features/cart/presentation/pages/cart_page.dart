@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/cart_service.dart';
+import '../../../../core/utils/currency_utils.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -78,27 +79,27 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
         'id': '1',
         'cart_name': 'Huile d\'olive extra vierge',
         'items_count': 2,
-        'cart_total_price': 25.98,
+        'cart_total_price': 8500.0, // Prix en FCFA
         'image': 'https://images.pexels.com/photos/33783/olive-oil-salad-dressing-cooking-olive.jpg',
-        'unit_price': 12.99,
+        'unit_price': 4250.0, // Prix unitaire en FCFA
         'category': 'Huiles',
       },
       {
         'id': '2',
         'cart_name': 'Set d\'épices du monde',
         'items_count': 1,
-        'cart_total_price': 24.99,
+        'cart_total_price': 16400.0, // Prix en FCFA
         'image': 'https://images.pexels.com/photos/1340116/pexels-photo-1340116.jpeg',
-        'unit_price': 24.99,
+        'unit_price': 16400.0,
         'category': 'Épices',
       },
       {
         'id': '3',
         'cart_name': 'Miel bio de lavande',
         'items_count': 3,
-        'cart_total_price': 47.97,
+        'cart_total_price': 31500.0, // Prix en FCFA
         'image': 'https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg',
-        'unit_price': 15.99,
+        'unit_price': 10500.0,
         'category': 'Bio',
       },
     ];
@@ -106,10 +107,6 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
 
   double _calculateSampleTotal() {
     return _cartItems.fold(0.0, (sum, item) => sum + (item['cart_total_price'] ?? 0.0));
-  }
-
-  String _formatPrice(double price) {
-    return '${price.toStringAsFixed(0)} FCFA';
   }
 
   Future<void> _removeItem(int index) async {
@@ -172,8 +169,10 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(isDark),
       appBar: AppBar(
         title: const Text('Mon Panier'),
         backgroundColor: AppColors.primary,
@@ -186,12 +185,22 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Vider le panier'),
-                    content: const Text('Êtes-vous sûr de vouloir vider votre panier ?'),
+                    backgroundColor: AppColors.getCardBackground(isDark),
+                    title: Text(
+                      'Vider le panier',
+                      style: TextStyle(color: AppColors.getTextPrimary(isDark)),
+                    ),
+                    content: Text(
+                      'Êtes-vous sûr de vouloir vider votre panier ?',
+                      style: TextStyle(color: AppColors.getTextSecondary(isDark)),
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Annuler'),
+                        child: Text(
+                          'Annuler',
+                          style: TextStyle(color: AppColors.getTextSecondary(isDark)),
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
@@ -215,7 +224,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _cartItems.isEmpty
-              ? _buildEmptyCart()
+              ? _buildEmptyCart(isDark)
               : FadeTransition(
                   opacity: _fadeAnimation,
                   child: Column(
@@ -267,7 +276,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                                     ),
                                   ),
                                   Text(
-                                    'Total: ${_formatPrice(_total * 655.957)}', // Conversion EUR vers FCFA
+                                    'Total: ${CurrencyUtils.formatPrice(_total)}',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 20,
@@ -288,20 +297,20 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                           itemCount: _cartItems.length,
                           itemBuilder: (context, index) {
                             final item = _cartItems[index];
-                            return _buildCartItem(item, index);
+                            return _buildCartItem(item, index, isDark);
                           },
                         ),
                       ),
                       
                       // Bouton de commande
-                      _buildCheckoutButton(),
+                      _buildCheckoutButton(isDark),
                     ],
                   ),
                 ),
     );
   }
 
-  Widget _buildEmptyCart() {
+  Widget _buildEmptyCart(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -325,7 +334,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: AppColors.getTextPrimary(isDark),
             ),
           ),
           const SizedBox(height: 8),
@@ -333,7 +342,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
             'Découvrez nos produits et ajoutez-les à votre panier',
             style: TextStyle(
               fontSize: 16,
-              color: AppColors.textSecondary,
+              color: AppColors.getTextSecondary(isDark),
             ),
             textAlign: TextAlign.center,
           ),
@@ -361,15 +370,15 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCartItem(Map<String, dynamic> item, int index) {
+  Widget _buildCartItem(Map<String, dynamic> item, int index, bool isDark) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.getCardBackground(isDark),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: AppColors.getShadow(isDark),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -418,10 +427,10 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                 children: [
                   Text(
                     item['cart_name'] ?? 'Article',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: AppColors.getTextPrimary(isDark),
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -445,15 +454,15 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                     ),
                   const SizedBox(height: 8),
                   Text(
-                    '${_formatPrice((item['unit_price'] ?? 0.0) * 655.957)} / unité',
-                    style: const TextStyle(
+                    '${CurrencyUtils.formatPrice(item['unit_price'] ?? 0.0)} / unité',
+                    style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textSecondary,
+                      color: AppColors.getTextSecondary(isDark),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Total: ${_formatPrice((item['cart_total_price'] ?? 0.0) * 655.957)}',
+                    'Total: ${CurrencyUtils.formatPrice(item['cart_total_price'] ?? 0.0)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -489,7 +498,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                 // Contrôles de quantité
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    color: AppColors.getBackground(isDark),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -516,10 +525,10 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                         alignment: Alignment.center,
                         child: Text(
                           '${item['items_count'] ?? 1}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: AppColors.getTextPrimary(isDark),
                           ),
                         ),
                       ),
@@ -550,14 +559,14 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCheckoutButton() {
+  Widget _buildCheckoutButton(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.getSurface(isDark),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: AppColors.getShadow(isDark),
             blurRadius: 20,
             offset: const Offset(0, -10),
           ),
@@ -583,7 +592,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                 const Icon(Icons.payment, size: 24),
                 const SizedBox(width: 12),
                 Text(
-                  'Commander • ${_formatPrice(_total * 655.957)}',
+                  'Commander • ${CurrencyUtils.formatPrice(_total)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -598,10 +607,12 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
   }
 
   Widget _buildCheckoutBottomSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      decoration: BoxDecoration(
+        color: AppColors.getCardBackground(isDark),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
       ),
       child: Padding(
         padding: EdgeInsets.only(
@@ -618,19 +629,19 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: AppColors.getBorder(isDark),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 20),
             
             // Titre
-            const Text(
+            Text(
               'Finaliser la commande',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: AppColors.getTextPrimary(isDark),
               ),
             ),
             const SizedBox(height: 20),
@@ -639,7 +650,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: AppColors.getBackground(isDark),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -647,10 +658,20 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Sous-total:', style: TextStyle(fontSize: 16)),
                       Text(
-                        _formatPrice(_total * 655.957),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        'Sous-total:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppColors.getTextPrimary(isDark),
+                        ),
+                      ),
+                      Text(
+                        CurrencyUtils.formatPrice(_total),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.getTextPrimary(isDark),
+                        ),
                       ),
                     ],
                   ),
@@ -658,10 +679,20 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Livraison:', style: TextStyle(fontSize: 16)),
                       Text(
-                        _formatPrice(2000), // 2000 FCFA de livraison
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        'Livraison:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppColors.getTextPrimary(isDark),
+                        ),
+                      ),
+                      Text(
+                        CurrencyUtils.formatPrice(CurrencyUtils.deliveryFee),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.getTextPrimary(isDark),
+                        ),
                       ),
                     ],
                   ),
@@ -669,12 +700,16 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Total:',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getTextPrimary(isDark),
+                        ),
                       ),
                       Text(
-                        _formatPrice((_total * 655.957) + 2000),
+                        CurrencyUtils.formatPrice(CurrencyUtils.calculateTotalWithFees(_total)),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -699,8 +734,12 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      side: BorderSide(color: AppColors.getBorder(isDark)),
                     ),
-                    child: const Text('Annuler'),
+                    child: Text(
+                      'Annuler',
+                      style: TextStyle(color: AppColors.getTextPrimary(isDark)),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
