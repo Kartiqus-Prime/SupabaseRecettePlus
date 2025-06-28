@@ -680,14 +680,14 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                   ),
                   const SizedBox(height: 4),
 
-                  // Description
+                  // Description - Limitée à 1 ligne pour éviter la déformation
                   Text(
                     cart['description'] ?? '',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 14,
                     ),
-                    maxLines: 2,
+                    maxLines: 1, // Changé de 2 à 1 ligne
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),

@@ -23,12 +23,12 @@ class _VideosPageState extends State<VideosPage> {
   void initState() {
     super.initState();
     _loadVideos();
-    // Configuration de la barre de statut pour les vidéos avec texte sombre
+    // Configuration de la barre de statut pour les vidéos - icônes claires sur fond sombre
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark, // Icônes sombres
-        statusBarBrightness: Brightness.light, // Fond clair
+        statusBarIconBrightness: Brightness.light, // Icônes claires
+        statusBarBrightness: Brightness.dark, // Fond sombre
         systemNavigationBarColor: Colors.black,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
@@ -38,14 +38,15 @@ class _VideosPageState extends State<VideosPage> {
   @override
   void dispose() {
     _pageController.dispose();
-    // Restaurer la barre de statut normale
+    // Restaurer la barre de statut normale selon le thème
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
+      SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
-        systemNavigationBarIconBrightness: Brightness.dark,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
     );
     super.dispose();
