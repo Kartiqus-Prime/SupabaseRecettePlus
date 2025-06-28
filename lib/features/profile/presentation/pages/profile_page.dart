@@ -593,19 +593,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         
         _buildProfileOption(
           context,
-          icon: Icons.notifications_rounded,
-          title: 'Notifications',
-          subtitle: 'Gérer vos notifications',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Géré dans Paramètres > Confidentialité')),
-            );
-          },
-          isDark: isDark,
-        ),
-        
-        _buildProfileOption(
-          context,
           icon: Icons.security_rounded,
           title: 'Confidentialité',
           subtitle: 'Paramètres de confidentialité et notifications',

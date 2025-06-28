@@ -13,6 +13,8 @@ class RecipesPage extends StatefulWidget {
 class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'Toutes';
+  String _selectedDifficulty = 'Toutes';
+  String _sortBy = 'recent'; // recent, popular, rating
   List<Map<String, dynamic>> _recipes = [];
   bool _isLoading = true;
   late AnimationController _animationController;
@@ -27,6 +29,20 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
     'Végétarien',
     'Rapide',
   ];
+
+  final List<String> _difficulties = [
+    'Toutes',
+    'Facile',
+    'Moyen',
+    'Difficile',
+  ];
+
+  final Map<String, String> _sortOptions = {
+    'recent': 'Plus récentes',
+    'popular': 'Plus populaires',
+    'rating': 'Mieux notées',
+    'time': 'Temps de cuisson',
+  };
 
   @override
   void initState() {
@@ -68,6 +84,9 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
         _recipes = recipes;
       }
 
+      // Appliquer les filtres et le tri
+      _applyFiltersAndSort();
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -78,11 +97,58 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
       if (mounted) {
         setState(() {
           _recipes = _getSampleRecipes();
+          _applyFiltersAndSort();
           _isLoading = false;
         });
         _animationController.forward();
       }
     }
+  }
+
+  void _applyFiltersAndSort() {
+    List<Map<String, dynamic>> filtered = List.from(_recipes);
+
+    // Filtrer par difficulté
+    if (_selectedDifficulty != 'Toutes') {
+      filtered = filtered.where((recipe) => 
+        recipe['difficulty'] == _selectedDifficulty
+      ).toList();
+    }
+
+    // Filtrer par recherche
+    if (_searchController.text.isNotEmpty) {
+      final searchTerm = _searchController.text.toLowerCase();
+      filtered = filtered.where((recipe) {
+        final title = recipe['title']?.toString().toLowerCase() ?? '';
+        final description = recipe['description']?.toString().toLowerCase() ?? '';
+        return title.contains(searchTerm) || description.contains(searchTerm);
+      }).toList();
+    }
+
+    // Trier
+    switch (_sortBy) {
+      case 'popular':
+        filtered.sort((a, b) => (b['rating'] ?? 0).compareTo(a['rating'] ?? 0));
+        break;
+      case 'rating':
+        filtered.sort((a, b) => (b['rating'] ?? 0).compareTo(a['rating'] ?? 0));
+        break;
+      case 'time':
+        filtered.sort((a, b) => (a['cook_time'] ?? 0).compareTo(b['cook_time'] ?? 0));
+        break;
+      case 'recent':
+      default:
+        filtered.sort((a, b) {
+          final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
+          final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
+          return dateB.compareTo(dateA);
+        });
+        break;
+    }
+
+    setState(() {
+      _recipes = filtered;
+    });
   }
 
   List<Map<String, dynamic>> _getSampleRecipes() {
@@ -171,23 +237,35 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
         'instructions': ['Battre les œufs', 'Chauffer la poêle', 'Cuire l\'omelette'],
         'created_at': DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
       },
+      {
+        'id': '7',
+        'title': 'Coq au Vin Traditionnel',
+        'category': 'Plats principaux',
+        'cook_time': 120,
+        'servings': 6,
+        'difficulty': 'Difficile',
+        'rating': 4.7,
+        'image': 'https://images.pexels.com/photos/958545/pexels-photo-958545.jpeg',
+        'description': 'Plat traditionnel français mijoté au vin rouge',
+        'ingredients': ['Poulet fermier', 'Vin rouge', 'Lardons', 'Champignons', 'Oignons'],
+        'instructions': ['Faire mariner le poulet', 'Faire revenir', 'Mijoter longuement'],
+        'created_at': DateTime.now().subtract(const Duration(days: 3)).toIso8601String(),
+      },
+      {
+        'id': '8',
+        'title': 'Tarte Tatin aux Pommes',
+        'category': 'Desserts',
+        'cook_time': 60,
+        'servings': 8,
+        'difficulty': 'Moyen',
+        'rating': 4.4,
+        'image': 'https://images.pexels.com/photos/1126359/pexels-photo-1126359.jpeg',
+        'description': 'Tarte renversée aux pommes caramélisées',
+        'ingredients': ['Pommes', 'Pâte brisée', 'Sucre', 'Beurre', 'Cannelle'],
+        'instructions': ['Caraméliser les pommes', 'Recouvrir de pâte', 'Cuire et retourner'],
+        'created_at': DateTime.now().subtract(const Duration(days: 4)).toIso8601String(),
+      },
     ];
-  }
-
-  List<Map<String, dynamic>> get _filteredRecipes {
-    if (_searchController.text.isEmpty && _selectedCategory == 'Toutes') {
-      return _recipes;
-    }
-
-    return _recipes.where((recipe) {
-      final matchesCategory = _selectedCategory == 'Toutes' || 
-                             recipe['category'] == _selectedCategory;
-      final matchesSearch = _searchController.text.isEmpty ||
-                           recipe['title']
-                               .toLowerCase()
-                               .contains(_searchController.text.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
   }
 
   Future<void> _addToFavorites(Map<String, dynamic> recipe) async {
@@ -238,170 +316,285 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
     );
   }
 
+  void _showFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildFilterModal(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
       backgroundColor: AppColors.getBackground(isDark),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header avec recherche
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.getSurface(isDark),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.getShadow(isDark),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Recettes',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.getTextPrimary(isDark),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.restaurant_menu,
-                          color: AppColors.primary,
-                          size: 24,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Barre de recherche
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.getBackground(isDark),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.getBorder(isDark),
-                        width: 1,
-                      ),
+      appBar: AppBar(
+        title: const Text('Recettes'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          // Bouton de tri
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            onSelected: (value) {
+              setState(() {
+                _sortBy = value;
+              });
+              _applyFiltersAndSort();
+            },
+            itemBuilder: (context) => _sortOptions.entries.map((entry) {
+              return PopupMenuItem<String>(
+                value: entry.key,
+                child: Row(
+                  children: [
+                    Icon(
+                      _sortBy == entry.key ? Icons.check : Icons.sort,
+                      color: _sortBy == entry.key ? AppColors.primary : null,
+                      size: 20,
                     ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {});
-                        if (value.isEmpty) {
-                          _loadRecipes();
-                        }
-                      },
-                      onSubmitted: (value) => _loadRecipes(),
-                      style: TextStyle(color: AppColors.getTextPrimary(isDark)),
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher une recette...',
-                        hintStyle: TextStyle(color: AppColors.getTextSecondary(isDark)),
-                        prefixIcon: Icon(Icons.search, color: AppColors.getTextSecondary(isDark)),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(Icons.clear, color: AppColors.getTextSecondary(isDark)),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _loadRecipes();
-                                },
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    const SizedBox(width: 12),
+                    Text(entry.value),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          // Bouton de filtres
+          IconButton(
+            onPressed: _showFilterModal,
+            icon: Stack(
+              children: [
+                const Icon(Icons.tune),
+                if (_selectedDifficulty != 'Toutes')
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
-            
-            // Filtres par catégorie
-            Container(
-              height: 70,
-              decoration: BoxDecoration(
-                color: AppColors.getSurface(isDark),
-                border: Border(
-                  bottom: BorderSide(
-                    color: AppColors.getBorder(isDark),
-                    width: 1,
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(120),
+          child: Container(
+            color: AppColors.primary,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              children: [
+                // Barre de recherche
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      _applyFiltersAndSort();
+                    },
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher une recette...',
+                      hintStyle: const TextStyle(color: AppColors.textSecondary),
+                      prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: AppColors.textSecondary),
+                              onPressed: () {
+                                _searchController.clear();
+                                _applyFiltersAndSort();
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
                   ),
                 ),
-              ),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                itemCount: _categories.length,
-                itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  final isSelected = category == _selectedCategory;
-                  
-                  return Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    child: FilterChip(
-                      label: Text(category),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                        _loadRecipes();
+                const SizedBox(height: 16),
+                
+                // Filtres par catégorie
+                SizedBox(
+                  height: 40,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _categories.length,
+                    itemBuilder: (context, index) {
+                      final category = _categories[index];
+                      final isSelected = category == _selectedCategory;
+                      
+                      return Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        child: FilterChip(
+                          label: Text(category),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedCategory = category;
+                            });
+                            _loadRecipes();
+                          },
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          selectedColor: Colors.white,
+                          labelStyle: TextStyle(
+                            color: isSelected ? AppColors.primary : Colors.white,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          side: BorderSide(
+                            color: isSelected ? Colors.white : Colors.white.withOpacity(0.5),
+                            width: isSelected ? 2 : 1,
+                          ),
+                          elevation: isSelected ? 2 : 0,
+                          shadowColor: Colors.black.withOpacity(0.3),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _recipes.isEmpty
+              ? _buildEmptyState(isDark)
+              : FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: RefreshIndicator(
+                    onRefresh: _loadRecipes,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: _recipes.length,
+                      itemBuilder: (context, index) {
+                        final recipe = _recipes[index];
+                        return _buildRecipeCard(recipe, isDark);
                       },
-                      backgroundColor: AppColors.getBackground(isDark),
-                      selectedColor: AppColors.primary.withOpacity(0.2),
-                      labelStyle: TextStyle(
-                        color: isSelected ? AppColors.primary : AppColors.getTextSecondary(isDark),
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                      side: BorderSide(
-                        color: isSelected ? AppColors.primary : AppColors.getBorder(isDark),
-                        width: isSelected ? 2 : 1,
-                      ),
-                      elevation: isSelected ? 2 : 0,
-                      shadowColor: AppColors.primary.withOpacity(0.3),
                     ),
-                  );
-                },
+                  ),
+                ),
+    );
+  }
+
+  Widget _buildFilterModal() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.getCardBackground(isDark),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.getBorder(isDark),
+                borderRadius: BorderRadius.circular(2),
               ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Titre
+            Text(
+              'Filtres avancés',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.getTextPrimary(isDark),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Difficulté
+            Text(
+              'Difficulté',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getTextPrimary(isDark),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _difficulties.map((difficulty) {
+                final isSelected = difficulty == _selectedDifficulty;
+                return FilterChip(
+                  label: Text(difficulty),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedDifficulty = difficulty;
+                    });
+                    _applyFiltersAndSort();
+                  },
+                  backgroundColor: AppColors.getBackground(isDark),
+                  selectedColor: AppColors.primary.withOpacity(0.2),
+                  labelStyle: TextStyle(
+                    color: isSelected ? AppColors.primary : AppColors.getTextSecondary(isDark),
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  side: BorderSide(
+                    color: isSelected ? AppColors.primary : AppColors.getBorder(isDark),
+                    width: isSelected ? 2 : 1,
+                  ),
+                );
+              }).toList(),
             ),
             
-            // Liste des recettes
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _filteredRecipes.isEmpty
-                      ? _buildEmptyState(isDark)
-                      : FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: RefreshIndicator(
-                            onRefresh: _loadRecipes,
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(20),
-                              itemCount: _filteredRecipes.length,
-                              itemBuilder: (context, index) {
-                                final recipe = _filteredRecipes[index];
-                                return _buildRecipeCard(recipe, isDark);
-                              },
-                            ),
-                          ),
-                        ),
+            const SizedBox(height: 20),
+            
+            // Boutons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedDifficulty = 'Toutes';
+                      });
+                      _applyFiltersAndSort();
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Réinitialiser'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Appliquer'),
+                  ),
+                ),
+              ],
             ),
+            
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -450,6 +643,7 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
               _searchController.clear();
               setState(() {
                 _selectedCategory = 'Toutes';
+                _selectedDifficulty = 'Toutes';
               });
               _loadRecipes();
             },
@@ -571,6 +765,35 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
                   ),
                 ),
                 
+                // Badge difficulté
+                if (recipe['difficulty'] != null)
+                  Positioned(
+                    top: 16,
+                    right: 70,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getDifficultyColor(recipe['difficulty']),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        recipe['difficulty'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                
                 // Bouton favori
                 Positioned(
                   top: 16,
@@ -683,12 +906,23 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
                           '${recipe['servings']} pers.',
                           isDark,
                         ),
-                      const SizedBox(width: 8),
-                      if (recipe['difficulty'] != null)
-                        _buildInfoChip(
-                          Icons.bar_chart,
-                          recipe['difficulty'],
-                          isDark,
+                      const Spacer(),
+                      // Indicateur de nouveauté
+                      if (_isRecent(recipe['created_at']))
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'NOUVEAU',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -732,5 +966,29 @@ class _RecipesPageState extends State<RecipesPage> with TickerProviderStateMixin
         ],
       ),
     );
+  }
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'facile':
+        return Colors.green;
+      case 'moyen':
+        return Colors.orange;
+      case 'difficile':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  bool _isRecent(String? createdAt) {
+    if (createdAt == null) return false;
+    try {
+      final date = DateTime.parse(createdAt);
+      final now = DateTime.now();
+      return now.difference(date).inDays <= 7; // Nouveau si moins de 7 jours
+    } catch (e) {
+      return false;
+    }
   }
 }

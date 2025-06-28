@@ -307,7 +307,7 @@ class MainNavigationPage extends StatefulWidget {
 }
 
 class _MainNavigationPageState extends State<MainNavigationPage> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 2; // Commencer par la page vidéos (index 2)
 
   final List<Widget> _pages = [
     const RecipesPage(),
