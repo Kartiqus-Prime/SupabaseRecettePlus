@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/phone_formatter.dart';
 
 class CustomTextField extends StatefulWidget {
   final String label;
@@ -14,6 +16,7 @@ class CustomTextField extends StatefulWidget {
   final int maxLines;
   final VoidCallback? onTap;
   final Function(String)? onChanged;
+  final bool isPhoneNumber;
 
   const CustomTextField({
     super.key,
@@ -29,6 +32,7 @@ class CustomTextField extends StatefulWidget {
     this.maxLines = 1,
     this.onTap,
     this.onChanged,
+    this.isPhoneNumber = false,
   });
 
   @override
@@ -68,6 +72,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
             maxLines: widget.maxLines,
             onTap: widget.onTap,
             onChanged: widget.onChanged,
+            inputFormatters: widget.isPhoneNumber 
+                ? [PhoneFormatter()]
+                : null,
             style: const TextStyle(
               fontSize: 16,
               color: AppColors.textPrimary,

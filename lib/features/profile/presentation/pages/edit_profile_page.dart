@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/services/image_service.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/phone_formatter.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
 
@@ -29,7 +30,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _errorMessage;
   String? _successMessage;
   String? _currentAvatarUrl;
-  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -65,16 +65,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             _bioController.text = profile?['bio'] ?? '';
             _locationController.text = profile?['location'] ?? '';
             _currentAvatarUrl = profile?['photo_url'];
-            
-            // Parse date of birth
-            if (profile?['date_of_birth'] != null) {
-              try {
-                _selectedDate = DateTime.parse(profile!['date_of_birth']);
-              } catch (e) {
-                _selectedDate = null;
-              }
-            }
-            
             _isLoadingProfile = false;
           });
         }
@@ -104,6 +94,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         throw Exception('Utilisateur non connecté');
       }
 
+      // Normaliser le numéro de téléphone
+      final normalizedPhone = PhoneValidator.normalizePhone(_phoneController.text.trim());
+
       // Mettre à jour les métadonnées utilisateur
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(
@@ -117,9 +110,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await SupabaseService.updateUserProfile(
         uid: user.id,
         displayName: _displayNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim().isNotEmpty 
-            ? _phoneController.text.trim() 
-            : null,
+        phoneNumber: normalizedPhone,
         additionalData: {
           'bio': _bioController.text.trim().isNotEmpty 
               ? _bioController.text.trim() 
@@ -127,7 +118,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
           'location': _locationController.text.trim().isNotEmpty 
               ? _locationController.text.trim() 
               : null,
-          'date_of_birth': _selectedDate?.toIso8601String().split('T').first,
         },
       );
 
@@ -222,36 +212,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         );
       }
     }
-  }
-
-  Future<void> _selectDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now().subtract(const Duration(days: 365 * 25)),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppColors.primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (date != null) {
-      setState(() {
-        _selectedDate = date;
-      });
-    }
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Non renseignée';
-    return '${date.day}/${date.month}/${date.year}';
   }
 
   @override
@@ -461,9 +421,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                       CustomTextField(
                         label: 'Numéro de téléphone (optionnel)',
+                        hint: '+223 XX XX XX XX ou XX XX XX XX',
                         controller: _phoneController,
                         validator: Validators.validatePhoneNumber,
                         keyboardType: TextInputType.phone,
+                        isPhoneNumber: true,
                         prefixIcon: const Icon(
                           Icons.phone_outlined,
                           color: AppColors.textSecondary,
@@ -491,59 +453,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           Icons.location_on_outlined,
                           color: AppColors.textSecondary,
                         ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Date de naissance
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Date de naissance (optionnel)',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.getTextPrimary(isDark),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: _selectDate,
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.getSurface(isDark),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.getBorder(isDark)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today_outlined,
-                                    color: AppColors.getTextSecondary(isDark),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    _formatDate(_selectedDate),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: _selectedDate != null 
-                                          ? AppColors.getTextPrimary(isDark)
-                                          : AppColors.getTextSecondary(isDark),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Icon(
-                                    Icons.arrow_drop_down,
-                                    color: AppColors.getTextSecondary(isDark),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                       const SizedBox(height: 32),
 

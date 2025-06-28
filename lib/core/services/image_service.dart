@@ -3,11 +3,54 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../utils/image_utils.dart';
 
 class ImageService {
   static final SupabaseClient _client = Supabase.instance.client;
   static final ImagePicker _picker = ImagePicker();
+
+  /// Vérifier et demander les permissions nécessaires
+  static Future<bool> _requestPermissions(ImageSource source) async {
+    try {
+      Permission permission;
+      
+      if (source == ImageSource.camera) {
+        permission = Permission.camera;
+      } else {
+        // Pour Android 13+ (API 33+), utiliser les permissions spécifiques
+        if (await Permission.photos.isSupported) {
+          permission = Permission.photos;
+        } else {
+          permission = Permission.storage;
+        }
+      }
+
+      final status = await permission.status;
+      
+      if (status.isGranted) {
+        return true;
+      }
+      
+      if (status.isDenied) {
+        final result = await permission.request();
+        return result.isGranted;
+      }
+      
+      if (status.isPermanentlyDenied) {
+        // Rediriger vers les paramètres
+        await openAppSettings();
+        return false;
+      }
+      
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erreur permissions: $e');
+      }
+      return false;
+    }
+  }
 
   /// Sélectionner une image depuis la galerie ou l'appareil photo
   static Future<Uint8List?> pickImage({
@@ -17,6 +60,12 @@ class ImageService {
     int imageQuality = 85,
   }) async {
     try {
+      // Vérifier et demander les permissions
+      final hasPermission = await _requestPermissions(source);
+      if (!hasPermission) {
+        throw Exception('Permission refusée pour accéder aux ${source == ImageSource.camera ? 'photos' : 'images'}');
+      }
+
       final XFile? image = await _picker.pickImage(
         source: source,
         maxWidth: maxWidth?.toDouble(),

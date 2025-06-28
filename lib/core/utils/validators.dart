@@ -1,3 +1,5 @@
+import 'phone_formatter.dart';
+
 class Validators {
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -49,17 +51,6 @@ class Validators {
   }
   
   static String? validatePhoneNumber(String? value) {
-    // Le numéro de téléphone est optionnel
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-    
-    // Vérification basique pour les numéros français
-    final phoneRegex = RegExp(r'^(\+33|0)[1-9](\d{8})$');
-    if (!phoneRegex.hasMatch(value.replaceAll(' ', ''))) {
-      return 'Veuillez entrer un numéro de téléphone valide';
-    }
-    
-    return null;
+    return PhoneValidator.validateMalianPhone(value);
   }
 }
