@@ -130,15 +130,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _checkInitialization() async {
     try {
       // Attendre un peu pour s'assurer que Supabase est initialisé
-      await Future.delayed(const Duration(milliseconds: 1000));
-      
-      // Tester la connexion Supabase
-      final client = Supabase.instance.client;
-      print('🔍 Test de connexion Supabase...');
-      
-      // Test simple pour vérifier que Supabase fonctionne
-      await client.from('profiles').select('id').limit(1);
-      print('✅ Connexion Supabase OK');
+      await Future.delayed(const Duration(milliseconds: 500));
       
       setState(() {
         _isInitialized = true;
@@ -187,88 +179,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Connexion à Supabase',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
             ],
-          ),
-        ),
-      );
-    }
-
-    // Si erreur de connexion, afficher un message mais continuer
-    if (_error != null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.warning_amber_rounded,
-                  size: 80,
-                  color: Colors.orange,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Problème de configuration',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Vérifiez votre fichier .env avec vos vraies clés Supabase',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Votre fichier .env doit contenir:\n\nSUPABASE_URL=https://votre-projet.supabase.co\nSUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    // Continuer vers l'application même avec erreur
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const WelcomePage(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Continuer en mode démo'),
-                ),
-              ],
-            ),
           ),
         ),
       );
@@ -310,6 +221,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
         
         if (session != null) {
+          // Redirection automatique vers l'application principale
           return const MainNavigationPage();
         } else {
           return const WelcomePage();

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/supabase_service.dart';
+import '../../../../core/services/cart_service.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -11,6 +13,8 @@ class ProductsPage extends StatefulWidget {
 class _ProductsPageState extends State<ProductsPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'Tous';
+  List<Map<String, dynamic>> _products = [];
+  bool _isLoading = true;
   
   final List<String> _categories = [
     'Tous',
@@ -22,72 +26,160 @@ class _ProductsPageState extends State<ProductsPage> {
     'Bio',
   ];
   
-  final List<Map<String, dynamic>> _products = [
-    {
-      'name': 'Huile d\'olive extra vierge',
-      'category': 'Huiles',
-      'price': 12.99,
-      'rating': 4.8,
-      'image': 'https://via.placeholder.com/150x150/FF6B35/FFFFFF?text=Huile',
-      'description': 'Huile d\'olive premium de première pression à froid',
-      'inStock': true,
-    },
-    {
-      'name': 'Set d\'épices du monde',
-      'category': 'Épices',
-      'price': 24.99,
-      'rating': 4.6,
-      'image': 'https://via.placeholder.com/150x150/4ECDC4/FFFFFF?text=Épices',
-      'description': 'Collection de 12 épices exotiques',
-      'inStock': true,
-    },
-    {
-      'name': 'Couteau de chef professionnel',
-      'category': 'Ustensiles',
-      'price': 89.99,
-      'rating': 4.9,
-      'image': 'https://via.placeholder.com/150x150/45B7D1/FFFFFF?text=Couteau',
-      'description': 'Couteau en acier inoxydable de haute qualité',
-      'inStock': false,
-    },
-    {
-      'name': 'Mixeur haute performance',
-      'category': 'Électroménager',
-      'price': 199.99,
-      'rating': 4.7,
-      'image': 'https://via.placeholder.com/150x150/F7DC6F/FFFFFF?text=Mixeur',
-      'description': 'Mixeur puissant pour smoothies et soupes',
-      'inStock': true,
-    },
-    {
-      'name': 'Livre "Cuisine du monde"',
-      'category': 'Livres',
-      'price': 29.99,
-      'rating': 4.5,
-      'image': 'https://via.placeholder.com/150x150/58D68D/FFFFFF?text=Livre',
-      'description': '200 recettes traditionnelles du monde entier',
-      'inStock': true,
-    },
-    {
-      'name': 'Miel bio de lavande',
-      'category': 'Bio',
-      'price': 15.99,
-      'rating': 4.8,
-      'image': 'https://via.placeholder.com/150x150/F1948A/FFFFFF?text=Miel',
-      'description': 'Miel artisanal bio récolté en Provence',
-      'inStock': true,
-    },
-  ];
-  
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProducts() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final products = await SupabaseService.getProducts(
+        category: _selectedCategory == 'Tous' ? null : _selectedCategory,
+        searchQuery: _searchController.text.trim().isNotEmpty 
+            ? _searchController.text.trim() 
+            : null,
+      );
+
+      // Si aucun produit en base, utiliser des données d'exemple
+      if (products.isEmpty && _selectedCategory == 'Tous' && _searchController.text.isEmpty) {
+        _products = _getSampleProducts();
+      } else {
+        _products = products;
+      }
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _products = _getSampleProducts();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _getSampleProducts() {
+    return [
+      {
+        'id': '1',
+        'name': 'Huile d\'olive extra vierge',
+        'category': 'Huiles',
+        'price': 12.99,
+        'rating': 4.8,
+        'image': 'https://images.pexels.com/photos/33783/olive-oil-salad-dressing-cooking-olive.jpg',
+        'description': 'Huile d\'olive premium de première pression à froid',
+        'in_stock': true,
+      },
+      {
+        'id': '2',
+        'name': 'Set d\'épices du monde',
+        'category': 'Épices',
+        'price': 24.99,
+        'rating': 4.6,
+        'image': 'https://images.pexels.com/photos/1340116/pexels-photo-1340116.jpeg',
+        'description': 'Collection de 12 épices exotiques',
+        'in_stock': true,
+      },
+      {
+        'id': '3',
+        'name': 'Couteau de chef professionnel',
+        'category': 'Ustensiles',
+        'price': 89.99,
+        'rating': 4.9,
+        'image': 'https://images.pexels.com/photos/2284166/pexels-photo-2284166.jpeg',
+        'description': 'Couteau en acier inoxydable de haute qualité',
+        'in_stock': false,
+      },
+      {
+        'id': '4',
+        'name': 'Mixeur haute performance',
+        'category': 'Électroménager',
+        'price': 199.99,
+        'rating': 4.7,
+        'image': 'https://images.pexels.com/photos/4226796/pexels-photo-4226796.jpeg',
+        'description': 'Mixeur puissant pour smoothies et soupes',
+        'in_stock': true,
+      },
+      {
+        'id': '5',
+        'name': 'Livre "Cuisine du monde"',
+        'category': 'Livres',
+        'price': 29.99,
+        'rating': 4.5,
+        'image': 'https://images.pexels.com/photos/1370295/pexels-photo-1370295.jpeg',
+        'description': '200 recettes traditionnelles du monde entier',
+        'in_stock': true,
+      },
+      {
+        'id': '6',
+        'name': 'Miel bio de lavande',
+        'category': 'Bio',
+        'price': 15.99,
+        'rating': 4.8,
+        'image': 'https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg',
+        'description': 'Miel artisanal bio récolté en Provence',
+        'in_stock': true,
+      },
+    ];
+  }
+
   List<Map<String, dynamic>> get _filteredProducts {
+    if (_searchController.text.isEmpty && _selectedCategory == 'Tous') {
+      return _products;
+    }
+
     return _products.where((product) {
       final matchesCategory = _selectedCategory == 'Tous' || 
                              product['category'] == _selectedCategory;
-      final matchesSearch = product['name']
-          .toLowerCase()
-          .contains(_searchController.text.toLowerCase());
+      final matchesSearch = _searchController.text.isEmpty ||
+                           product['name']
+                               .toLowerCase()
+                               .contains(_searchController.text.toLowerCase());
       return matchesCategory && matchesSearch;
     }).toList();
+  }
+
+  Future<void> _addToCart(Map<String, dynamic> product) async {
+    try {
+      await CartService.addToCart(
+        productId: product['id'],
+        quantity: 1,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${product['name']} ajouté au panier'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -121,7 +213,13 @@ class _ProductsPageState extends State<ProductsPage> {
                     ),
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (value) => setState(() {}),
+                      onChanged: (value) {
+                        setState(() {});
+                        if (value.isEmpty) {
+                          _loadProducts();
+                        }
+                      },
+                      onSubmitted: (value) => _loadProducts(),
                       decoration: const InputDecoration(
                         hintText: 'Rechercher un produit...',
                         prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
@@ -155,6 +253,7 @@ class _ProductsPageState extends State<ProductsPage> {
                         setState(() {
                           _selectedCategory = category;
                         });
+                        _loadProducts();
                       },
                       backgroundColor: Colors.grey[100],
                       selectedColor: AppColors.primary.withOpacity(0.2),
@@ -173,41 +272,46 @@ class _ProductsPageState extends State<ProductsPage> {
             
             // Grille des produits
             Expanded(
-              child: _filteredProducts.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: AppColors.textSecondary,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredProducts.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 64,
+                                color: AppColors.textSecondary,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Aucun produit trouvé',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Aucun produit trouvé',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: AppColors.textSecondary,
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadProducts,
+                          child: GridView.builder(
+                            padding: const EdgeInsets.all(20),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.75,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
                             ),
+                            itemCount: _filteredProducts.length,
+                            itemBuilder: (context, index) {
+                              final product = _filteredProducts[index];
+                              return _buildProductCard(product);
+                            },
                           ),
-                        ],
-                      ),
-                    )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(20),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.75,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      itemCount: _filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = _filteredProducts[index];
-                        return _buildProductCard(product);
-                      },
-                    ),
+                        ),
             ),
           ],
         ),
@@ -216,6 +320,8 @@ class _ProductsPageState extends State<ProductsPage> {
   }
   
   Widget _buildProductCard(Map<String, dynamic> product) {
+    final isInStock = product['in_stock'] ?? true;
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -250,25 +356,34 @@ class _ProductsPageState extends State<ProductsPage> {
                   children: [
                     ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      child: Image.network(
-                        product['image'],
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: AppColors.primary.withOpacity(0.1),
-                            child: const Icon(
-                              Icons.shopping_bag,
-                              color: AppColors.primary,
-                              size: 32,
+                      child: product['image'] != null
+                          ? Image.network(
+                              product['image'],
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  child: const Icon(
+                                    Icons.shopping_bag,
+                                    color: AppColors.primary,
+                                    size: 32,
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: AppColors.primary.withOpacity(0.1),
+                              child: const Icon(
+                                Icons.shopping_bag,
+                                color: AppColors.primary,
+                                size: 32,
+                              ),
                             ),
-                          );
-                        },
-                      ),
                     ),
                     // Badge de disponibilité
-                    if (!product['inStock'])
+                    if (!isInStock)
                       Positioned(
                         top: 8,
                         right: 8,
@@ -313,7 +428,7 @@ class _ProductsPageState extends State<ProductsPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      product['description'],
+                      product['description'] ?? '',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -325,30 +440,55 @@ class _ProductsPageState extends State<ProductsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          '${product['price'].toStringAsFixed(2)} €',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.star,
-                              size: 14,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 2),
                             Text(
-                              product['rating'].toString(),
+                              '${product['price']?.toStringAsFixed(2) ?? '0.00'} €',
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
                               ),
                             ),
+                            if (product['rating'] != null)
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    product['rating'].toString(),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
+                        ),
+                        // Bouton d'ajout au panier
+                        GestureDetector(
+                          onTap: isInStock ? () => _addToCart(product) : null,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isInStock 
+                                  ? AppColors.primary 
+                                  : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.add_shopping_cart,
+                              color: isInStock ? Colors.white : Colors.grey[600],
+                              size: 18,
+                            ),
+                          ),
                         ),
                       ],
                     ),

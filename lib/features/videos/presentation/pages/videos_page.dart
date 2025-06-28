@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/video_service.dart';
+import '../widgets/video_player_widget.dart';
 
 class VideosPage extends StatefulWidget {
   const VideosPage({super.key});
@@ -10,23 +12,25 @@ class VideosPage extends StatefulWidget {
 }
 
 class _VideosPageState extends State<VideosPage> {
+  final PageController _pageController = PageController();
   List<Map<String, dynamic>> _videos = [];
   bool _isLoading = true;
-  String _selectedCategory = 'Toutes';
-
-  final List<String> _categories = [
-    'Toutes',
-    'Techniques',
-    'Recettes rapides',
-    'Desserts',
-    'Plats principaux',
-    'Bases',
-  ];
+  int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _loadVideos();
+    // Masquer la barre de statut pour une expérience plein écran
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    // Restaurer la barre de statut
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
   }
 
   Future<void> _loadVideos() async {
@@ -35,323 +39,266 @@ class _VideosPageState extends State<VideosPage> {
     });
 
     try {
-      final videos = await VideoService.getVideos(
-        category: _selectedCategory == 'Toutes' ? null : _selectedCategory,
-      );
+      // Charger des vidéos d'exemple si la base de données n'est pas configurée
+      final videos = await VideoService.getVideos(limit: 50);
+      
+      // Si aucune vidéo en base, utiliser des données d'exemple
+      if (videos.isEmpty) {
+        _videos = _getSampleVideos();
+      } else {
+        _videos = videos;
+      }
       
       if (mounted) {
         setState(() {
-          _videos = videos;
           _isLoading = false;
         });
       }
     } catch (e) {
+      // En cas d'erreur, utiliser des données d'exemple
       if (mounted) {
         setState(() {
+          _videos = _getSampleVideos();
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
       }
     }
   }
 
+  List<Map<String, dynamic>> _getSampleVideos() {
+    return [
+      {
+        'id': '1',
+        'title': 'Pasta Carbonara Authentique',
+        'description': 'Apprenez à faire une vraie carbonara italienne avec seulement 5 ingrédients !',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg',
+        'duration': 180,
+        'views': 15420,
+        'likes': 892,
+        'category': 'Plats principaux',
+        'recipe_id': 'recipe_1',
+        'created_at': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+      },
+      {
+        'id': '2',
+        'title': 'Technique de découpe des légumes',
+        'description': 'Maîtrisez les techniques de découpe comme un chef professionnel',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg',
+        'duration': 240,
+        'views': 8930,
+        'likes': 567,
+        'category': 'Techniques',
+        'recipe_id': null,
+        'created_at': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+      },
+      {
+        'id': '3',
+        'title': 'Tiramisu Express',
+        'description': 'Un tiramisu délicieux en seulement 15 minutes !',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/6880219/pexels-photo-6880219.jpeg',
+        'duration': 120,
+        'views': 23450,
+        'likes': 1234,
+        'category': 'Desserts',
+        'recipe_id': 'recipe_3',
+        'created_at': DateTime.now().subtract(const Duration(hours: 12)).toIso8601String(),
+      },
+      {
+        'id': '4',
+        'title': 'Smoothie Bowl Tropical',
+        'description': 'Un petit-déjeuner coloré et nutritif pour bien commencer la journée',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg',
+        'duration': 90,
+        'views': 12340,
+        'likes': 678,
+        'category': 'Petit-déjeuner',
+        'recipe_id': 'recipe_4',
+        'created_at': DateTime.now().subtract(const Duration(hours: 6)).toIso8601String(),
+      },
+      {
+        'id': '5',
+        'title': 'Ratatouille Traditionnelle',
+        'description': 'La recette authentique de la ratatouille provençale',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/8629141/pexels-photo-8629141.jpeg',
+        'duration': 300,
+        'views': 18760,
+        'likes': 945,
+        'category': 'Plats principaux',
+        'recipe_id': 'recipe_5',
+        'created_at': DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
+      },
+    ];
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    
+    // Incrémenter les vues de la vidéo
+    if (_videos.isNotEmpty && index < _videos.length) {
+      final videoId = _videos[index]['id'];
+      if (videoId != null) {
+        VideoService.incrementViews(videoId);
+      }
+    }
+  }
+
+  Future<void> _likeVideo(String videoId, int currentLikes) async {
+    try {
+      await VideoService.likeVideo(videoId);
+      
+      // Mettre à jour localement
+      setState(() {
+        final videoIndex = _videos.indexWhere((v) => v['id'] == videoId);
+        if (videoIndex != -1) {
+          _videos[videoIndex]['likes'] = currentLikes + 1;
+        }
+      });
+      
+      // Feedback haptique
+      HapticFeedback.lightImpact();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
+  }
+
+  void _shareVideo(Map<String, dynamic> video) {
+    // TODO: Implémenter le partage
+    HapticFeedback.mediumImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Partage de: ${video['title']}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showRecipe(String? recipeId) {
+    if (recipeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucune recette associée à cette vidéo'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
+    // TODO: Naviguer vers la page de recette
+    HapticFeedback.mediumImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ouverture de la recette: $recipeId'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(20),
-              color: Colors.white,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Vidéos',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Apprenez avec nos tutoriels vidéo',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        ),
+      );
+    }
+
+    if (_videos.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.video_library_outlined,
+                size: 80,
+                color: Colors.white54,
               ),
-            ),
-            
-            // Filtres par catégorie
-            Container(
-              height: 60,
-              color: Colors.white,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _categories.length,
-                itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  final isSelected = category == _selectedCategory;
-                  
+              const SizedBox(height: 16),
+              const Text(
+                'Aucune vidéo disponible',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _loadVideos,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Réessayer'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // PageView pour le scroll vertical des vidéos
+          PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            onPageChanged: _onPageChanged,
+            itemCount: _videos.length,
+            itemBuilder: (context, index) {
+              final video = _videos[index];
+              return VideoPlayerWidget(
+                video: video,
+                isActive: index == _currentIndex,
+                onLike: () => _likeVideo(
+                  video['id'], 
+                  video['likes'] ?? 0,
+                ),
+                onShare: () => _shareVideo(video),
+                onShowRecipe: () => _showRecipe(video['recipe_id']),
+              );
+            },
+          ),
+          
+          // Indicateur de position (optionnel)
+          if (_videos.length > 1)
+            Positioned(
+              right: 8,
+              top: MediaQuery.of(context).size.height * 0.4,
+              child: Column(
+                children: List.generate(_videos.length, (index) {
                   return Container(
-                    margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-                    child: FilterChip(
-                      label: Text(category),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                        _loadVideos();
-                      },
-                      backgroundColor: Colors.grey[100],
-                      selectedColor: AppColors.primary.withOpacity(0.2),
-                      labelStyle: TextStyle(
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                      side: BorderSide(
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                      ),
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    width: 3,
+                    height: index == _currentIndex ? 20 : 8,
+                    decoration: BoxDecoration(
+                      color: index == _currentIndex 
+                          ? Colors.white 
+                          : Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   );
-                },
+                }),
               ),
             ),
-            
-            // Liste des vidéos
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _videos.isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.video_library_outlined,
-                                size: 64,
-                                color: AppColors.textSecondary,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Aucune vidéo disponible',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(20),
-                          itemCount: _videos.length,
-                          itemBuilder: (context, index) {
-                            final video = _videos[index];
-                            return _buildVideoCard(video);
-                          },
-                        ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideoCard(Map<String, dynamic> video) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
         ],
       ),
-      child: InkWell(
-        onTap: () {
-          // TODO: Naviguer vers le lecteur vidéo
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lecture de: ${video['title']}')),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail de la vidéo
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                color: AppColors.primary.withOpacity(0.1),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (video['thumbnail_url'] != null)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      child: Image.network(
-                        video['thumbnail_url'],
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.video_library,
-                            size: 60,
-                            color: AppColors.primary,
-                          );
-                        },
-                      ),
-                    )
-                  else
-                    const Icon(
-                      Icons.video_library,
-                      size: 60,
-                      color: AppColors.primary,
-                    ),
-                  
-                  // Bouton play
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                  
-                  // Durée
-                  if (video['duration'] != null)
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _formatDuration(video['duration']),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            
-            // Informations de la vidéo
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    video['title'] ?? 'Vidéo sans titre',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  if (video['description'] != null)
-                    Text(
-                      video['description'],
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          video['category'] ?? 'Autre',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      Row(
-                        children: [
-                          const Icon(Icons.visibility, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${video['views'] ?? 0}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Icon(Icons.favorite, size: 16, color: Colors.red),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${video['likes'] ?? 0}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
-  }
-
-  String _formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 }
