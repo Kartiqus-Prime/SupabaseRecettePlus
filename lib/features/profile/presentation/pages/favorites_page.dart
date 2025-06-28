@@ -44,9 +44,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
     }
   }
 
-  Future<void> _removeFromFavorites(String recipeId, int index) async {
+  Future<void> _removeFromFavorites(String itemId, int index) async {
     try {
-      await SupabaseService.removeFromFavorites(recipeId);
+      await SupabaseService.removeFromFavorites(itemId);
       setState(() {
         _favorites.removeAt(index);
       });
@@ -81,8 +81,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     itemCount: _favorites.length,
                     itemBuilder: (context, index) {
                       final favorite = _favorites[index];
-                      final recipe = favorite['recipes'] ?? {};
-                      return _buildFavoriteCard(recipe, favorite['recipe_id'], index);
+                      return _buildFavoriteCard(favorite, index);
                     },
                   ),
                 ),
@@ -122,7 +121,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
     );
   }
 
-  Widget _buildFavoriteCard(Map<String, dynamic> recipe, String recipeId, int index) {
+  Widget _buildFavoriteCard(Map<String, dynamic> favorite, int index) {
+    final itemId = favorite['item_id'] ?? '';
+    final type = favorite['type'] ?? 'recipe';
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -139,16 +141,15 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          // TODO: Navigate to recipe detail
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ouvrir: ${recipe['title']}')),
+            SnackBar(content: Text('Ouvrir: $type $itemId')),
           );
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Image de la recette
+              // Image placeholder
               Container(
                 width: 80,
                 height: 80,
@@ -156,37 +157,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   borderRadius: BorderRadius.circular(12),
                   color: AppColors.primary.withOpacity(0.1),
                 ),
-                child: recipe['image_url'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          recipe['image_url'],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.restaurant,
-                              color: AppColors.primary,
-                              size: 40,
-                            );
-                          },
-                        ),
-                      )
-                    : const Icon(
-                        Icons.restaurant,
-                        color: AppColors.primary,
-                        size: 40,
-                      ),
+                child: Icon(
+                  type == 'recipe' ? Icons.restaurant : Icons.shopping_bag,
+                  color: AppColors.primary,
+                  size: 40,
+                ),
               ),
               
               const SizedBox(width: 16),
               
-              // Informations de la recette
+              // Informations
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      recipe['title'] ?? 'Recette sans titre',
+                      'Favori ${type == 'recipe' ? 'Recette' : 'Produit'}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -197,7 +183,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      recipe['description'] ?? '',
+                      'ID: $itemId',
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
@@ -206,46 +192,23 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            recipe['category'] ?? 'Autre',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        type.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
                         ),
-                        const Spacer(),
-                        if (recipe['rating'] != null)
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                size: 16,
-                                color: Colors.amber,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                recipe['rating'].toString(),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
@@ -253,7 +216,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               
               // Bouton de suppression
               IconButton(
-                onPressed: () => _removeFromFavorites(recipeId, index),
+                onPressed: () => _removeFromFavorites(itemId, index),
                 icon: const Icon(
                   Icons.favorite,
                   color: Colors.red,

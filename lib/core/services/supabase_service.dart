@@ -177,6 +177,77 @@ class SupabaseService {
     }
   }
 
+  // History Methods - NOUVELLES MÉTHODES AJOUTÉES
+  static Future<void> addToHistory(String recipeId) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      // Supprimer l'entrée existante s'il y en a une pour éviter les doublons
+      await _client
+          .from('user_history') // Utilise une table d'historique dédiée
+          .delete()
+          .eq('user_id', userId)
+          .eq('recipe_id', recipeId);
+
+      // Ajouter la nouvelle entrée
+      await _client.from('user_history').insert({
+        'user_id': userId,
+        'recipe_id': recipeId,
+        'viewed_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erreur lors de l\'ajout à l\'historique: $e');
+      }
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getUserHistory() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return [];
+
+      // Pour l'instant, on utilise une requête simple
+      // Plus tard, on pourra faire une jointure avec la table recipes
+      final response = await _client
+          .from('user_history')
+          .select('*, recipes(*)')
+          .eq('user_id', userId)
+          .order('viewed_at', ascending: false)
+          .limit(50);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erreur lors de la récupération de l\'historique: $e');
+      }
+      // Si la table user_history n'existe pas encore, retourner une liste vide
+      return [];
+    }
+  }
+
+  // Orders Methods - NOUVELLES MÉTHODES AJOUTÉES
+  static Future<List<Map<String, dynamic>>> getUserOrders() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return [];
+
+      final response = await _client
+          .from('orders') // Utilise une table orders dédiée
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erreur lors de la récupération des commandes: $e');
+      }
+      return [];
+    }
+  }
+
   // Recipes Methods
   static Future<List<Map<String, dynamic>>> getRecipes({
     String? category,
