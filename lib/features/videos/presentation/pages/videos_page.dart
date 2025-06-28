@@ -23,11 +23,12 @@ class _VideosPageState extends State<VideosPage> {
   void initState() {
     super.initState();
     _loadVideos();
-    // Garder la barre de statut visible mais transparente
+    // Configuration de la barre de statut pour les vidéos
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
         systemNavigationBarColor: Colors.black,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
@@ -42,6 +43,7 @@ class _VideosPageState extends State<VideosPage> {
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
         systemNavigationBarColor: Colors.white,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
@@ -366,28 +368,27 @@ class _VideosPageState extends State<VideosPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        top: false, // Permettre à la vidéo d'aller sous la barre de statut
-        child: PageView.builder(
-          controller: _pageController,
-          scrollDirection: Axis.vertical,
-          onPageChanged: _onPageChanged,
-          itemCount: _videos.length,
-          physics: const BouncingScrollPhysics(), // Scroll plus fluide
-          itemBuilder: (context, index) {
-            final video = _videos[index];
-            return VideoPlayerWidget(
-              video: video,
-              isActive: index == _currentIndex,
-              onLike: () => _likeVideo(
-                video['id'], 
-                video['likes'] ?? 0,
-              ),
-              onShare: () => _shareVideo(video),
-              onShowRecipe: () => _showRecipe(video['recipe_id']),
-            );
-          },
-        ),
+      extendBodyBehindAppBar: true, // Étendre le contenu derrière la barre d'état
+      body: PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        onPageChanged: _onPageChanged,
+        itemCount: _videos.length,
+        physics: const BouncingScrollPhysics(), // Scroll plus fluide
+        // Supprimer la barre de défilement
+        itemBuilder: (context, index) {
+          final video = _videos[index];
+          return VideoPlayerWidget(
+            video: video,
+            isActive: index == _currentIndex,
+            onLike: () => _likeVideo(
+              video['id'], 
+              (video['likes'] is int) ? video['likes'] : int.tryParse(video['likes'].toString()) ?? 0,
+            ),
+            onShare: () => _shareVideo(video),
+            onShowRecipe: () => _showRecipe(video['recipe_id']),
+          );
+        },
       ),
     );
   }

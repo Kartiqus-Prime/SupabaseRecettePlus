@@ -111,19 +111,32 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     widget.onLike();
   }
 
-  String _formatNumber(int number) {
-    if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1)}M';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}K';
+  // Fonction utilitaire pour convertir en entier de manière sécurisée
+  int _safeParseInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value) ?? defaultValue;
     }
-    return number.toString();
+    return defaultValue;
   }
 
-  String _formatDuration(int? seconds) {
-    if (seconds == null) return '';
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
+  String _formatNumber(dynamic number) {
+    final intNumber = _safeParseInt(number);
+    if (intNumber >= 1000000) {
+      return '${(intNumber / 1000000).toStringAsFixed(1)}M';
+    } else if (intNumber >= 1000) {
+      return '${(intNumber / 1000).toStringAsFixed(1)}K';
+    }
+    return intNumber.toString();
+  }
+
+  String _formatDuration(dynamic seconds) {
+    final intSeconds = _safeParseInt(seconds);
+    if (intSeconds == 0) return '';
+    final minutes = intSeconds ~/ 60;
+    final remainingSeconds = intSeconds % 60;
     return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
@@ -303,7 +316,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                _formatNumber(widget.video['views'] ?? 0),
+                                _formatNumber(widget.video['views']),
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -394,7 +407,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _formatNumber(widget.video['likes'] ?? 0),
+                      _formatNumber(widget.video['likes']),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
