@@ -106,7 +106,35 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
   }
 
   double _calculateSampleTotal() {
-    return _cartItems.fold(0.0, (sum, item) => sum + (item['cart_total_price'] ?? 0.0));
+    return _cartItems.fold(0.0, (sum, item) {
+      final price = item['cart_total_price'];
+      if (price is num) {
+        return sum + price.toDouble();
+      }
+      return sum;
+    });
+  }
+
+  // Fonction utilitaire pour convertir en double de manière sécurisée
+  double _safeToDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  // Fonction utilitaire pour convertir en int de manière sécurisée
+  int _safeToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
   }
 
   Future<void> _removeItem(int index) async {
@@ -115,7 +143,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
     final removedItem = _cartItems[index];
     setState(() {
       _cartItems.removeAt(index);
-      _total -= removedItem['cart_total_price'] ?? 0.0;
+      _total -= _safeToDouble(removedItem['cart_total_price']);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -128,7 +156,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
           onPressed: () {
             setState(() {
               _cartItems.insert(index, removedItem);
-              _total += removedItem['cart_total_price'] ?? 0.0;
+              _total += _safeToDouble(removedItem['cart_total_price']);
             });
           },
         ),
@@ -146,8 +174,8 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
     
     setState(() {
       final item = _cartItems[index];
-      final unitPrice = item['unit_price'] ?? 0.0;
-      final oldTotal = item['cart_total_price'] ?? 0.0;
+      final unitPrice = _safeToDouble(item['unit_price']);
+      final oldTotal = _safeToDouble(item['cart_total_price']);
       final newTotal = unitPrice * newQuantity;
       
       _cartItems[index]['items_count'] = newQuantity;
@@ -454,7 +482,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                     ),
                   const SizedBox(height: 8),
                   Text(
-                    '${CurrencyUtils.formatPrice(item['unit_price'] ?? 0.0)} / unité',
+                    '${CurrencyUtils.formatPrice(_safeToDouble(item['unit_price']))} / unité',
                     style: TextStyle(
                       fontSize: 14,
                       color: AppColors.getTextSecondary(isDark),
@@ -462,7 +490,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Total: ${CurrencyUtils.formatPrice(item['cart_total_price'] ?? 0.0)}',
+                    'Total: ${CurrencyUtils.formatPrice(_safeToDouble(item['cart_total_price']))}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -505,7 +533,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
-                        onTap: () => _updateQuantity(index, (item['items_count'] ?? 1) - 1),
+                        onTap: () => _updateQuantity(index, _safeToInt(item['items_count']) - 1),
                         child: Container(
                           width: 32,
                           height: 32,
@@ -524,7 +552,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                         width: 40,
                         alignment: Alignment.center,
                         child: Text(
-                          '${item['items_count'] ?? 1}',
+                          '${_safeToInt(item['items_count'])}',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -533,7 +561,7 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => _updateQuantity(index, (item['items_count'] ?? 1) + 1),
+                        onTap: () => _updateQuantity(index, _safeToInt(item['items_count']) + 1),
                         child: Container(
                           width: 32,
                           height: 32,
