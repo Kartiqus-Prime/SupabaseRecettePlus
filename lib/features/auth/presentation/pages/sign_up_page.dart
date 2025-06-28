@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/services/google_auth_service.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/social_button.dart';
@@ -77,6 +78,8 @@ class _SignUpPageState extends State<SignUpPage> {
               backgroundColor: AppColors.success,
             ),
           );
+          
+          // Navigation automatique gérée par AuthWrapper
         }
       }
     } on AuthException catch (e) {
@@ -103,18 +106,31 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
-      await _supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'io.supabase.recetteplus://login-callback/',
-        authScreenLaunchMode: LaunchMode.externalApplication,
-      );
-    } on AuthException catch (e) {
-      setState(() {
-        _errorMessage = _getErrorMessage(e.message);
-      });
+      // Utiliser le service d'authentification Google natif
+      final AuthResponse? response = await GoogleAuthService.signInWithGoogleNative();
+      
+      if (response?.user != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Inscription Google réussie !'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          
+          // Navigation automatique gérée par AuthWrapper
+        }
+      } else {
+        // L'utilisateur a annulé la connexion
+        if (mounted) {
+          setState(() {
+            _errorMessage = null; // Pas d'erreur si annulation
+          });
+        }
+      }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur de connexion Google: $e';
+        _errorMessage = _getGoogleErrorMessage(e.toString());
       });
     } finally {
       if (mounted) {
@@ -136,6 +152,17 @@ class _SignUpPageState extends State<SignUpPage> {
       return 'L\'inscription est temporairement désactivée.';
     }
     return 'Erreur d\'inscription: $message';
+  }
+
+  String _getGoogleErrorMessage(String error) {
+    if (error.contains('network_error')) {
+      return 'Erreur de réseau. Vérifiez votre connexion internet.';
+    } else if (error.contains('sign_in_canceled')) {
+      return 'Inscription annulée.';
+    } else if (error.contains('sign_in_failed')) {
+      return 'Échec de l\'inscription Google. Réessayez.';
+    }
+    return 'Erreur Google: $error';
   }
 
   @override

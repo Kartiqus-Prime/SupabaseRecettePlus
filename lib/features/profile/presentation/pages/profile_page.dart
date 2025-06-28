@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/google_auth_service.dart';
 import 'edit_profile_page.dart';
 import 'favorites_page.dart';
 import 'history_page.dart';
@@ -73,7 +74,10 @@ class ProfilePage extends StatelessWidget {
                     const SizedBox(height: 16),
                     // Nom de l'utilisateur
                     Text(
-                      user?.userMetadata?['display_name'] ?? 'Utilisateur',
+                      user?.userMetadata?['display_name'] ?? 
+                      user?.userMetadata?['full_name'] ?? 
+                      user?.email?.split('@')[0] ?? 
+                      'Utilisateur',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -89,6 +93,36 @@ class ProfilePage extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
+                    // Badge du provider
+                    if (user?.appMetadata?['provider'] == 'google') ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.g_mobiledata,
+                              size: 16,
+                              color: Colors.blue[700],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Compte Google',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -213,13 +247,28 @@ class ProfilePage extends StatelessWidget {
                     );
                     
                     if (shouldLogout == true) {
-                      await Supabase.instance.client.auth.signOut();
-                      if (context.mounted) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/welcome',
-                          (route) => false,
-                        );
+                      try {
+                        // Utiliser le service Google pour une déconnexion complète
+                        await GoogleAuthService.signOut();
+                        
+                        if (context.mounted) {
+                          // Navigation automatique gérée par AuthWrapper
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Déconnexion réussie'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Erreur lors de la déconnexion: $e'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
                       }
                     }
                   },

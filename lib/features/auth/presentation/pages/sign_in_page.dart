@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/services/google_auth_service.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/social_button.dart';
@@ -68,6 +69,8 @@ class _SignInPageState extends State<SignInPage> {
               backgroundColor: AppColors.success,
             ),
           );
+          
+          // Navigation automatique gérée par AuthWrapper
         }
       }
     } on AuthException catch (e) {
@@ -94,19 +97,31 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      // Utiliser la méthode OAuth native de Supabase pour le web/mobile
-      await _supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'io.supabase.recetteplus://login-callback/',
-        authScreenLaunchMode: LaunchMode.externalApplication,
-      );
-    } on AuthException catch (e) {
-      setState(() {
-        _errorMessage = _getErrorMessage(e.message);
-      });
+      // Utiliser le service d'authentification Google natif
+      final AuthResponse? response = await GoogleAuthService.signInWithGoogleNative();
+      
+      if (response?.user != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connexion Google réussie !'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          
+          // Navigation automatique gérée par AuthWrapper
+        }
+      } else {
+        // L'utilisateur a annulé la connexion
+        if (mounted) {
+          setState(() {
+            _errorMessage = null; // Pas d'erreur si annulation
+          });
+        }
+      }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur de connexion Google: $e';
+        _errorMessage = _getGoogleErrorMessage(e.toString());
       });
     } finally {
       if (mounted) {
@@ -128,6 +143,17 @@ class _SignInPageState extends State<SignInPage> {
       return 'Aucun compte trouvé avec cet email.';
     }
     return 'Erreur de connexion: $message';
+  }
+
+  String _getGoogleErrorMessage(String error) {
+    if (error.contains('network_error')) {
+      return 'Erreur de réseau. Vérifiez votre connexion internet.';
+    } else if (error.contains('sign_in_canceled')) {
+      return 'Connexion annulée.';
+    } else if (error.contains('sign_in_failed')) {
+      return 'Échec de la connexion Google. Réessayez.';
+    }
+    return 'Erreur Google: $error';
   }
 
   @override
@@ -209,6 +235,34 @@ class _SignInPageState extends State<SignInPage> {
                   const SizedBox(height: 24),
                 ],
 
+                // Connexion Google en premier (recommandé)
+                SocialButton(
+                  text: 'Continuer avec Google',
+                  iconPath: 'assets/images/google-logo.svg',
+                  onPressed: _signInWithGoogle,
+                  isLoading: _isGoogleLoading,
+                ),
+                const SizedBox(height: 24),
+
+                // Séparateur
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: AppColors.border)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        AppStrings.or,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: AppColors.border)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
                 // Champs de saisie
                 CustomTextField(
                   label: AppStrings.email,
@@ -262,34 +316,6 @@ class _SignInPageState extends State<SignInPage> {
                   text: AppStrings.signIn,
                   onPressed: _signInWithEmailAndPassword,
                   isLoading: _isLoading,
-                ),
-                const SizedBox(height: 24),
-
-                // Séparateur
-                Row(
-                  children: [
-                    const Expanded(child: Divider(color: AppColors.border)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        AppStrings.or,
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const Expanded(child: Divider(color: AppColors.border)),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Connexion Google
-                SocialButton(
-                  text: AppStrings.signInWithGoogle,
-                  iconPath: 'assets/images/google-logo.svg',
-                  onPressed: _signInWithGoogle,
-                  isLoading: _isGoogleLoading,
                 ),
                 const SizedBox(height: 32),
 
