@@ -69,7 +69,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             // Parse date of birth
             if (profile?['date_of_birth'] != null) {
               try {
-                _selectedDate = DateTime.parse(profile['date_of_birth']);
+                _selectedDate = DateTime.parse(profile!['date_of_birth']);
               } catch (e) {
                 _selectedDate = null;
               }
@@ -127,7 +127,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           'location': _locationController.text.trim().isNotEmpty 
               ? _locationController.text.trim() 
               : null,
-          'date_of_birth': _selectedDate?.toIso8601String().split('T')[0],
+          'date_of_birth': _selectedDate?.toIso8601String().split('T').first,
         },
       );
 

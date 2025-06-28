@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
@@ -152,13 +152,15 @@ class ImageService {
 
   /// Afficher un sélecteur de source d'image
   static Future<ImageSource?> showImageSourceSelector(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
           child: Column(
@@ -170,18 +172,19 @@ class ImageService {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: isDark ? Colors.grey[600] : Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 20),
               
               // Titre
-              const Text(
+              Text(
                 'Choisir une photo',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black,
                 ),
               ),
               const SizedBox(height: 20),
@@ -189,17 +192,32 @@ class ImageService {
               // Options
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: Colors.blue),
-                title: const Text('Appareil photo'),
+                title: Text(
+                  'Appareil photo',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library, color: Colors.green),
-                title: const Text('Galerie'),
+                title: Text(
+                  'Galerie',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
               ),
               ListTile(
                 leading: const Icon(Icons.cancel, color: Colors.red),
-                title: const Text('Annuler'),
+                title: Text(
+                  'Annuler',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
                 onTap: () => Navigator.pop(context),
               ),
               
