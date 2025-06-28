@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'app_constants.dart';
 
@@ -112,6 +113,3 @@ class ImageUtils {
     return base64Decode(base64String);
   }
 }
-
-// Import nécessaire pour base64
-import 'dart:convert';

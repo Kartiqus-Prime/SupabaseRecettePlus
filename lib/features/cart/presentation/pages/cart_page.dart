@@ -43,8 +43,8 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
     });
 
     try {
-      final items = await CartService.getCartItems();
-      final total = await CartService.calculateCartTotal();
+      final items = await CartService.getMainCartItems();
+      final total = await CartService.calculateMainCartTotal();
       
       // Simuler des données si le panier est vide
       if (items.isEmpty) {
@@ -141,27 +141,42 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
     HapticFeedback.mediumImpact();
     
     final removedItem = _cartItems[index];
-    setState(() {
-      _cartItems.removeAt(index);
-      _total -= _safeToDouble(removedItem['cart_total_price']);
-    });
+    
+    try {
+      // Supprimer de la base de données si c'est un vrai item
+      if (removedItem['id'] != null && removedItem['id'] is String && removedItem['id'].length > 5) {
+        await CartService.removeFromMainCart(removedItem['id']);
+      }
+      
+      setState(() {
+        _cartItems.removeAt(index);
+        _total -= _safeToDouble(removedItem['cart_total_price']);
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${removedItem['cart_name']} supprimé du panier'),
-        backgroundColor: AppColors.error,
-        action: SnackBarAction(
-          label: 'Annuler',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() {
-              _cartItems.insert(index, removedItem);
-              _total += _safeToDouble(removedItem['cart_total_price']);
-            });
-          },
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${removedItem['cart_name']} supprimé du panier'),
+          backgroundColor: AppColors.error,
+          action: SnackBarAction(
+            label: 'Annuler',
+            textColor: Colors.white,
+            onPressed: () {
+              setState(() {
+                _cartItems.insert(index, removedItem);
+                _total += _safeToDouble(removedItem['cart_total_price']);
+              });
+            },
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la suppression: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _updateQuantity(int index, int newQuantity) async {
@@ -231,13 +246,23 @@ class _CartPageState extends State<CartPage> with TickerProviderStateMixin {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.pop(context);
-                          setState(() {
-                            _cartItems.clear();
-                            _total = 0.0;
-                          });
-                          HapticFeedback.mediumImpact();
+                          try {
+                            await CartService.clearMainCart();
+                            setState(() {
+                              _cartItems.clear();
+                              _total = 0.0;
+                            });
+                            HapticFeedback.mediumImpact();
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Erreur: $e'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
                         },
                         child: const Text('Vider', style: TextStyle(color: Colors.red)),
                       ),
