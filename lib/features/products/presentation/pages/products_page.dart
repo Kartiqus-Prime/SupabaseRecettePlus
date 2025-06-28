@@ -154,6 +154,12 @@ class _ProductsPageState extends State<ProductsPage> {
     }).toList();
   }
 
+  String _formatPrice(double price) {
+    // Conversion EUR vers FCFA (1 EUR ≈ 655.957 FCFA)
+    final priceInFCFA = price * 655.957;
+    return '${priceInFCFA.toStringAsFixed(0)} FCFA';
+  }
+
   Future<void> _addToCart(Map<String, dynamic> product) async {
     try {
       await CartService.addToCart(
@@ -167,6 +173,13 @@ class _ProductsPageState extends State<ProductsPage> {
             content: Text('${product['name']} ajouté au panier'),
             backgroundColor: AppColors.success,
             duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: 'Voir panier',
+              textColor: Colors.white,
+              onPressed: () {
+                // TODO: Naviguer vers le panier
+              },
+            ),
           ),
         );
       }
@@ -444,9 +457,9 @@ class _ProductsPageState extends State<ProductsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${product['price']?.toStringAsFixed(2) ?? '0.00'} €',
+                              _formatPrice(product['price']?.toDouble() ?? 0.0),
                               style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
                               ),
