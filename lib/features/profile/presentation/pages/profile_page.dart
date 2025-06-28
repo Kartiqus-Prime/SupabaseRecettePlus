@@ -42,6 +42,11 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
     
     _loadUserData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _updateStatusBarForTheme();
   }
 
@@ -64,12 +69,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
     );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _updateStatusBarForTheme();
   }
 
   Future<void> _loadUserData() async {
