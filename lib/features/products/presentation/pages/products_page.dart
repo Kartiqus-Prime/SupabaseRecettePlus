@@ -401,7 +401,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                               padding: const EdgeInsets.all(20),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 0.7,
+                                childAspectRatio: 0.75, // Augmenté pour plus d'espace
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),
@@ -635,73 +635,81 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
               ),
             ),
             
-            // Informations du produit
+            // Informations du produit - CORRECTION DU DÉBORDEMENT
             Expanded(
               flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12), // Réduit de 16 à 12
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min, // Ajouté pour éviter le débordement
                   children: [
-                    Text(
-                      product['name'],
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.getTextPrimary(isDark),
+                    // Nom du produit
+                    Flexible( // Changé de Text à Flexible
+                      child: Text(
+                        product['name'],
+                        style: TextStyle(
+                          fontSize: 13, // Réduit de 14 à 13
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getTextPrimary(isDark),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
                     
-                    if (product['unit'] != null)
+                    // Unité - Conditionnel et plus compact
+                    if (product['unit'] != null) ...[
+                      const SizedBox(height: 2), // Réduit de 4 à 2
                       Text(
                         product['unit'],
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10, // Réduit de 11 à 10
                           color: AppColors.getTextSecondary(isDark),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ],
                     
                     const Spacer(),
                     
-                    // Prix et bouton d'ajout
+                    // Prix et bouton d'ajout - Plus compact
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.center, // Changé de end à center
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                CurrencyUtils.formatPrice(product['price']?.toDouble() ?? 0.0),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
+                        // Prix
+                        Flexible( // Changé de Expanded à Flexible
+                          child: Text(
+                            CurrencyUtils.formatPrice(product['price']?.toDouble() ?? 0.0),
+                            style: const TextStyle(
+                              fontSize: 14, // Réduit de 16 à 14
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         
-                        // Bouton d'ajout au panier
+                        const SizedBox(width: 8), // Ajouté pour l'espacement
+                        
+                        // Bouton d'ajout au panier - Plus petit
                         GestureDetector(
                           onTap: isInStock ? () => _addToCart(product) : null,
                           child: Container(
-                            width: 36,
-                            height: 36,
+                            width: 32, // Réduit de 36 à 32
+                            height: 32, // Réduit de 36 à 32
                             decoration: BoxDecoration(
                               color: isInStock 
                                   ? AppColors.primary 
                                   : AppColors.getTextSecondary(isDark),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(8), // Réduit de 10 à 8
                               boxShadow: isInStock ? [
                                 BoxShadow(
                                   color: AppColors.primary.withOpacity(0.3),
-                                  blurRadius: 8,
+                                  blurRadius: 6, // Réduit de 8 à 6
                                   offset: const Offset(0, 2),
                                 ),
                               ] : null,
@@ -709,7 +717,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                             child: const Icon(
                               Icons.add_shopping_cart,
                               color: Colors.white,
-                              size: 18,
+                              size: 16, // Réduit de 18 à 16
                             ),
                           ),
                         ),

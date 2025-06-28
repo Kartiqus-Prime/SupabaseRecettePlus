@@ -163,7 +163,7 @@ class RecettePlusApp extends StatelessWidget {
         ),
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
+          statusBarIconBrightness: Brightness.light, // Icônes claires en mode sombre
           statusBarBrightness: Brightness.dark,
         ),
       ),
@@ -326,6 +326,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Mettre à jour la barre de statut selon le thème
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: AppColors.getSurface(isDark),
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      ),
+    );
     
     return Scaffold(
       body: IndexedStack(
