@@ -317,7 +317,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
 
   void _viewCartDetails(Map<String, dynamic> cart) {
     HapticFeedback.mediumImpact();
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -359,7 +359,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       body: SafeArea(
         child: Column(
           children: [
-            // Header avec recherche et filtre
+            // Header avec recherche
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -465,7 +465,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
             // Paniers préconfigurés en vedette avec défilement automatique
             if (_featuredCarts.isNotEmpty) ...[
               Container(
-                height: 180,
+                height: 200, // Augmenté de 180 à 200
                 decoration: BoxDecoration(
                   color: AppColors.getSurface(isDark),
                   border: Border(
@@ -479,7 +479,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8), // Réduit de 16 à 12 en haut
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -556,7 +556,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                               padding: const EdgeInsets.all(20),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 0.75, // Ajusté pour éviter l'overflow
+                                childAspectRatio: 0.7, // Ajusté pour éviter l'overflow
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),
@@ -1040,15 +1040,18 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Nom du produit
-                    Text(
-                      product['name'],
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.getTextPrimary(isDark),
+                    Flexible(
+                      child: Text(
+                        product['name'],
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getTextPrimary(isDark),
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
 
                     // Unité
@@ -1077,7 +1080,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                           child: Text(
                             CurrencyUtils.formatPrice(product['price']?.toDouble() ?? 0.0),
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
                             ),
@@ -1092,8 +1095,8 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                         GestureDetector(
                           onTap: isInStock ? () => _addToCart(product) : null,
                           child: Container(
-                            width: 32,
-                            height: 32,
+                            width: 28,
+                            height: 28,
                             decoration: BoxDecoration(
                               color: isInStock
                                   ? AppColors.primary
@@ -1110,7 +1113,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                             child: const Icon(
                               Icons.add_shopping_cart,
                               color: Colors.white,
-                              size: 16,
+                              size: 14,
                             ),
                           ),
                         ),
