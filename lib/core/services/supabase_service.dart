@@ -6,7 +6,7 @@ import '../../supabase_options.dart';
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  // User Profile Methods
+  // User Profile Methods - Utilise la table 'profiles' selon votre DB
   static Future<void> createUserProfile({
     required String uid,
     required String displayName,
@@ -87,18 +87,19 @@ class SupabaseService {
   }
 
   // Favorites Methods
-  static Future<void> addToFavorites(String recipeId) async {
+  static Future<void> addToFavorites(String itemId, String type) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Utilisateur non connecté');
 
       await _client.from(SupabaseOptions.favoritesTable).insert({
         'user_id': userId,
-        'recipe_id': recipeId,
+        'item_id': itemId,
+        'type': type, // 'recipe', 'product', etc.
         'created_at': DateTime.now().toIso8601String(),
       });
       if (kDebugMode) {
-        print('✅ Recette ajoutée aux favoris');
+        print('✅ Ajouté aux favoris');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -108,7 +109,7 @@ class SupabaseService {
     }
   }
 
-  static Future<void> removeFromFavorites(String recipeId) async {
+  static Future<void> removeFromFavorites(String itemId) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Utilisateur non connecté');
@@ -117,10 +118,10 @@ class SupabaseService {
           .from(SupabaseOptions.favoritesTable)
           .delete()
           .eq('user_id', userId)
-          .eq('recipe_id', recipeId);
+          .eq('item_id', itemId);
 
       if (kDebugMode) {
-        print('✅ Recette supprimée des favoris');
+        print('✅ Supprimé des favoris');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -130,16 +131,21 @@ class SupabaseService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getUserFavorites() async {
+  static Future<List<Map<String, dynamic>>> getUserFavorites({String? type}) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return [];
 
-      final response = await _client
+      var query = _client
           .from(SupabaseOptions.favoritesTable)
-          .select('*, recipes(*)')
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .select()
+          .eq('user_id', userId);
+
+      if (type != null) {
+        query = query.eq('type', type);
+      }
+
+      final response = await query.order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
@@ -150,7 +156,7 @@ class SupabaseService {
     }
   }
 
-  static Future<bool> isFavorite(String recipeId) async {
+  static Future<bool> isFavorite(String itemId) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return false;
@@ -159,7 +165,7 @@ class SupabaseService {
           .from(SupabaseOptions.favoritesTable)
           .select('id')
           .eq('user_id', userId)
-          .eq('recipe_id', recipeId)
+          .eq('item_id', itemId)
           .limit(1);
 
       return response.isNotEmpty;
@@ -178,23 +184,16 @@ class SupabaseService {
     int limit = 20,
   }) async {
     try {
-      // Create a base query
-      final baseQuery = _client.from(SupabaseOptions.recipesTable).select();
-
-      // Build filters
-      final filters = <String, Object>{
-        'is_active': true,
-      };
+      var query = _client.from(SupabaseOptions.recipesTable).select();
 
       if (category != null && category.isNotEmpty) {
-        filters['category'] = category;
+        query = query.eq('category', category);
       }
 
-      // Execute the query with all conditions
-      final response = await baseQuery
-          .match(filters)
+      final response = await query
           .order('created_at', ascending: false)
           .limit(limit);
+      
       List<Map<String, dynamic>> recipes =
           List<Map<String, dynamic>>.from(response);
 
@@ -218,30 +217,22 @@ class SupabaseService {
   }
 
   // Products Methods
-  // ...existing code...
   static Future<List<Map<String, dynamic>>> getProducts({
     String? category,
     String? searchQuery,
     int limit = 20,
   }) async {
     try {
-      // Create a base query
-      final baseQuery = _client.from(SupabaseOptions.productsTable).select();
-
-      // Build filters
-      final filters = <String, Object>{
-        'is_active': true,
-      };
+      var query = _client.from(SupabaseOptions.productsTable).select();
 
       if (category != null && category.isNotEmpty) {
-        filters['category'] = category;
+        query = query.eq('category', category);
       }
 
-      // Execute the query with all conditions
-      final response = await baseQuery
-          .match(filters)
+      final response = await query
           .order('name', ascending: true)
           .limit(limit);
+      
       List<Map<String, dynamic>> products =
           List<Map<String, dynamic>>.from(response);
 
@@ -257,75 +248,6 @@ class SupabaseService {
     } catch (e) {
       if (kDebugMode) {
         print('❌ Erreur lors de la récupération des produits: $e');
-      }
-      return [];
-    }
-  }
-// ...existing code...
-
-  // User History Methods
-  static Future<void> addToHistory(String recipeId) async {
-    try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return;
-
-      // Supprimer l'entrée existante s'il y en a une
-      await _client
-          .from(SupabaseOptions.historyTable)
-          .delete()
-          .eq('user_id', userId)
-          .eq('recipe_id', recipeId);
-
-      // Ajouter la nouvelle entrée
-      await _client.from(SupabaseOptions.historyTable).insert({
-        'user_id': userId,
-        'recipe_id': recipeId,
-        'viewed_at': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de l\'ajout à l\'historique: $e');
-      }
-    }
-  }
-
-  static Future<List<Map<String, dynamic>>> getUserHistory() async {
-    try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return [];
-
-      final response = await _client
-          .from(SupabaseOptions.historyTable)
-          .select('*, recipes(*)')
-          .eq('user_id', userId)
-          .order('viewed_at', ascending: false)
-          .limit(50);
-
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération de l\'historique: $e');
-      }
-      return [];
-    }
-  }
-
-  // Orders Methods
-  static Future<List<Map<String, dynamic>>> getUserOrders() async {
-    try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return [];
-
-      final response = await _client
-          .from(SupabaseOptions.ordersTable)
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la récupération des commandes: $e');
       }
       return [];
     }

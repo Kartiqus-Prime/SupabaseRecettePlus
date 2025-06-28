@@ -5,11 +5,14 @@ import 'features/auth/presentation/pages/welcome_page.dart';
 import 'features/recipes/presentation/pages/recipes_page.dart';
 import 'features/products/presentation/pages/products_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
+import 'features/cart/presentation/pages/cart_page.dart';
+import 'features/videos/presentation/pages/videos_page.dart';
 import 'core/constants/app_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Initialiser Supabase avec les variables d'environnement
   await Supabase.initialize(
     url: SupabaseOptions.supabaseUrl,
     anonKey: SupabaseOptions.supabaseAnonKey,
@@ -97,6 +100,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   final List<Widget> _pages = [
     const RecipesPage(),
     const ProductsPage(),
+    const VideosPage(),
+    const CartPage(),
     const ProfilePage(),
   ];
 
@@ -138,6 +143,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               icon: Icon(Icons.shopping_bag_rounded),
               activeIcon: Icon(Icons.shopping_bag),
               label: 'Produits',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.video_library_rounded),
+              activeIcon: Icon(Icons.video_library),
+              label: 'Vidéos',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart_rounded),
+              activeIcon: Icon(Icons.shopping_cart),
+              label: 'Panier',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_rounded),
