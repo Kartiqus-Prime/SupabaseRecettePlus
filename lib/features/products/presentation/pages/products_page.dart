@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/services/cart_service.dart';
@@ -14,10 +15,12 @@ class ProductsPage extends StatefulWidget {
 
 class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  final PageController _cartsPageController = PageController();
   String _selectedCategory = 'Tous';
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _featuredCarts = [];
   bool _isLoading = true;
+  Timer? _autoScrollTimer;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   
@@ -42,13 +45,31 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _loadData();
+    _startAutoScroll();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _animationController.dispose();
+    _cartsPageController.dispose();
+    _autoScrollTimer?.cancel();
     super.dispose();
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_featuredCarts.isNotEmpty && _cartsPageController.hasClients) {
+        final nextPage = (_cartsPageController.page?.round() ?? 0) + 1;
+        final targetPage = nextPage >= _featuredCarts.length ? 0 : nextPage;
+        
+        _cartsPageController.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -58,7 +79,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
 
     try {
       // Charger les produits et les paniers préconfigurés en parallèle
-      final futures = await Future.wait([
+      await Future.wait([
         _loadProducts(),
         _loadFeaturedCarts(),
       ]);
@@ -121,10 +142,10 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
         'id': '1',
         'name': 'Huile d\'olive extra vierge',
         'category': 'Huiles',
-        'price': 4250.0, // Prix en FCFA
+        'price': 4250.0,
         'rating': 4.8,
         'image': 'https://images.pexels.com/photos/33783/olive-oil-salad-dressing-cooking-olive.jpg',
-        'description': 'Huile d\'olive premium de première pression à froid, parfaite pour vos salades et cuissons douces',
+        'description': 'Huile d\'olive premium de première pression à froid',
         'in_stock': true,
         'unit': 'bouteille 500ml',
       },
@@ -132,10 +153,10 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
         'id': '2',
         'name': 'Set d\'épices du monde',
         'category': 'Épices',
-        'price': 16400.0, // Prix en FCFA
+        'price': 16400.0,
         'rating': 4.6,
         'image': 'https://images.pexels.com/photos/1340116/pexels-photo-1340116.jpeg',
-        'description': 'Collection de 12 épices exotiques pour voyager à travers les saveurs du monde',
+        'description': 'Collection de 12 épices exotiques',
         'in_stock': true,
         'unit': 'coffret',
       },
@@ -143,10 +164,10 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
         'id': '3',
         'name': 'Couteau de chef professionnel',
         'category': 'Ustensiles',
-        'price': 59000.0, // Prix en FCFA
+        'price': 59000.0,
         'rating': 4.9,
         'image': 'https://images.pexels.com/photos/2284166/pexels-photo-2284166.jpeg',
-        'description': 'Couteau en acier inoxydable de haute qualité, lame de 20cm, parfait pour tous vos découpages',
+        'description': 'Couteau en acier inoxydable de haute qualité',
         'in_stock': false,
         'unit': 'pièce',
       },
@@ -154,10 +175,10 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
         'id': '4',
         'name': 'Mixeur haute performance',
         'category': 'Électroménager',
-        'price': 131000.0, // Prix en FCFA
+        'price': 131000.0,
         'rating': 4.7,
         'image': 'https://images.pexels.com/photos/4226796/pexels-photo-4226796.jpeg',
-        'description': 'Mixeur puissant 1200W pour smoothies, soupes et préparations diverses',
+        'description': 'Mixeur puissant 1200W',
         'in_stock': true,
         'unit': 'appareil',
       },
@@ -165,10 +186,10 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
         'id': '5',
         'name': 'Livre "Cuisine du monde"',
         'category': 'Livres',
-        'price': 19700.0, // Prix en FCFA
+        'price': 19700.0,
         'rating': 4.5,
         'image': 'https://images.pexels.com/photos/1370295/pexels-photo-1370295.jpeg',
-        'description': '200 recettes traditionnelles du monde entier avec photos et techniques détaillées',
+        'description': '200 recettes traditionnelles',
         'in_stock': true,
         'unit': 'livre',
       },
@@ -176,34 +197,12 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
         'id': '6',
         'name': 'Miel bio de lavande',
         'category': 'Bio',
-        'price': 10500.0, // Prix en FCFA
+        'price': 10500.0,
         'rating': 4.8,
         'image': 'https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg',
-        'description': 'Miel artisanal bio récolté en Provence, saveur délicate de lavande',
+        'description': 'Miel artisanal bio récolté en Provence',
         'in_stock': true,
         'unit': 'pot 250g',
-      },
-      {
-        'id': '7',
-        'name': 'Planche à découper bambou',
-        'category': 'Ustensiles',
-        'price': 8200.0, // Prix en FCFA
-        'rating': 4.4,
-        'image': 'https://images.pexels.com/photos/4198021/pexels-photo-4198021.jpeg',
-        'description': 'Planche à découper écologique en bambou, antibactérienne et durable',
-        'in_stock': true,
-        'unit': 'pièce',
-      },
-      {
-        'id': '8',
-        'name': 'Moulin à poivre électrique',
-        'category': 'Ustensiles',
-        'price': 24600.0, // Prix en FCFA
-        'rating': 4.3,
-        'image': 'https://images.pexels.com/photos/4198022/pexels-photo-4198022.jpeg',
-        'description': 'Moulin électrique avec éclairage LED, réglage de la finesse de mouture',
-        'in_stock': true,
-        'unit': 'pièce',
       },
     ];
   }
@@ -211,31 +210,44 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   List<Map<String, dynamic>> _getSampleFeaturedCarts() {
     return [
       {
-        'id': 'cart1',
-        'name': 'Kit Pâtisserie',
-        'description': 'Tout pour commencer la pâtisserie',
+        'id': 'featured-cart-1',
+        'name': 'Kit Pâtisserie Complet',
+        'description': 'Tout pour commencer la pâtisserie comme un chef',
         'image': 'https://images.pexels.com/photos/1070850/pexels-photo-1070850.jpeg',
         'total_price': 45000.0,
         'category': 'Pâtisserie',
         'is_featured': true,
+        'items_count': 8,
       },
       {
-        'id': 'cart2',
+        'id': 'featured-cart-2',
         'name': 'Épices du Monde',
-        'description': 'Sélection d\'épices exotiques',
+        'description': 'Sélection d\'épices exotiques pour voyager',
         'image': 'https://images.pexels.com/photos/1340116/pexels-photo-1340116.jpeg',
         'total_price': 32000.0,
         'category': 'Épices',
         'is_featured': true,
+        'items_count': 12,
       },
       {
-        'id': 'cart3',
+        'id': 'featured-cart-3',
         'name': 'Cuisine Healthy',
-        'description': 'Produits bio et naturels',
+        'description': 'Produits bio et naturels pour une cuisine saine',
         'image': 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg',
         'total_price': 28500.0,
         'category': 'Bio',
         'is_featured': true,
+        'items_count': 6,
+      },
+      {
+        'id': 'featured-cart-4',
+        'name': 'Ustensiles Pro',
+        'description': 'Équipement professionnel pour votre cuisine',
+        'image': 'https://images.pexels.com/photos/2284166/pexels-photo-2284166.jpeg',
+        'total_price': 89000.0,
+        'category': 'Ustensiles',
+        'is_featured': true,
+        'items_count': 5,
       },
     ];
   }
@@ -324,6 +336,30 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _buildFilterModal(),
+    );
+  }
+
+  void _viewCartDetails(Map<String, dynamic> cart) {
+    HapticFeedback.mediumImpact();
+    
+    // TODO: Naviguer vers la page de détail du panier préconfigué
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ouverture de: ${cart['name']}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _viewAllPreconfiguredCarts() {
+    HapticFeedback.mediumImpact();
+    
+    // TODO: Naviguer vers la page dédiée aux paniers préconfigurés
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Page des paniers préconfigurés'),
+        backgroundColor: AppColors.primary,
+      ),
     );
   }
 
@@ -451,10 +487,10 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
               ),
             ),
             
-            // Paniers préconfigurés en vedette
+            // Paniers préconfigurés en vedette avec défilement automatique
             if (_featuredCarts.isNotEmpty) ...[
               Container(
-                height: 140,
+                height: 180,
                 decoration: BoxDecoration(
                   color: AppColors.getSurface(isDark),
                   border: Border(
@@ -469,24 +505,61 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                      child: Text(
-                        'Paniers en vedette',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.getTextPrimary(isDark),
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Paniers en vedette',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.getTextPrimary(isDark),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _viewAllPreconfiguredCarts,
+                            child: const Text(
+                              'Voir tout',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Expanded(
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: PageView.builder(
+                        controller: _cartsPageController,
                         itemCount: _featuredCarts.length,
                         itemBuilder: (context, index) {
                           final cart = _featuredCarts[index];
-                          return _buildFeaturedCartCard(cart, isDark);
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: _buildFeaturedCartCard(cart, isDark),
+                          );
                         },
+                      ),
+                    ),
+                    // Indicateurs de page
+                    Container(
+                      height: 20,
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          _featuredCarts.length,
+                          (index) => Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary.withOpacity(0.3),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -508,7 +581,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                               padding: const EdgeInsets.all(20),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 0.75,
+                                childAspectRatio: 0.8,
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),
@@ -529,98 +602,183 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
 
   Widget _buildFeaturedCartCard(Map<String, dynamic> cart, bool isDark) {
     return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 16, bottom: 8),
       decoration: BoxDecoration(
         color: AppColors.getCardBackground(isDark),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: AppColors.getShadow(isDark),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: InkWell(
-        onTap: () => _addPreconfiguredCart(cart),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Image
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppColors.primary.withOpacity(0.1),
-                ),
+        onTap: () => _viewCartDetails(cart),
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            // Image de fond
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
                 child: cart['image'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          cart['image'],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
+                    ? Image.network(
+                        cart['image'],
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: AppColors.primary.withOpacity(0.1),
+                            child: const Icon(
                               Icons.shopping_basket,
                               color: AppColors.primary,
-                              size: 30,
-                            );
-                          },
-                        ),
+                              size: 60,
+                            ),
+                          );
+                        },
                       )
-                    : const Icon(
-                        Icons.shopping_basket,
-                        color: AppColors.primary,
-                        size: 30,
+                    : Container(
+                        color: AppColors.primary.withOpacity(0.1),
+                        child: const Icon(
+                          Icons.shopping_basket,
+                          color: AppColors.primary,
+                          size: 60,
+                        ),
                       ),
               ),
-              
-              const SizedBox(width: 12),
-              
-              // Informations
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      cart['name'] ?? 'Panier',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.getTextPrimary(isDark),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      cart['description'] ?? '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.getTextSecondary(isDark),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      CurrencyUtils.formatPrice(cart['total_price']?.toDouble() ?? 0.0),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
+            ),
+            
+            // Overlay gradient
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.7),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+            
+            // Contenu
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 20,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Badge catégorie
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      cart['category'] ?? 'Panier',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Nom du panier
+                  Text(
+                    cart['name'] ?? 'Panier',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  
+                  // Description
+                  Text(
+                    cart['description'] ?? '',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Prix et nombre d'articles
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        CurrencyUtils.formatPrice(cart['total_price']?.toDouble() ?? 0.0),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${cart['items_count'] ?? 0} articles',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Bouton d'ajout
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => _addPreconfiguredCart(cart),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.add_shopping_cart,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -930,20 +1088,17 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Nom du produit
-                    Flexible(
-                      child: Text(
-                        product['name'],
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.getTextPrimary(isDark),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      product['name'],
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.getTextPrimary(isDark),
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     
                     // Unité
@@ -968,7 +1123,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Prix
-                        Flexible(
+                        Expanded(
                           child: Text(
                             CurrencyUtils.formatPrice(product['price']?.toDouble() ?? 0.0),
                             style: const TextStyle(
