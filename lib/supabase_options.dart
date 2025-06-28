@@ -1,17 +1,8 @@
 class SupabaseOptions {
-  // Configuration depuis les variables d'environnement avec valeurs par défaut
-  static const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://your-project.supabase.co',
-  );
-  static const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'your-anon-key',
-  );
-  static const String supabaseServiceRoleKey = String.fromEnvironment(
-    'SUPABASE_SERVICE_ROLE_KEY',
-    defaultValue: 'your-service-role-key',
-  );
+  // Configuration avec valeurs par défaut pour éviter les erreurs
+  static const String supabaseUrl = 'https://your-project.supabase.co';
+  static const String supabaseAnonKey = 'your-anon-key';
+  static const String supabaseServiceRoleKey = 'your-service-role-key';
   
   // Table names basées sur votre structure db.json
   static const String usersTable = 'profiles';

@@ -15,15 +15,37 @@ void main() async {
   try {
     print('🚀 Démarrage de l\'application...');
     
-    // Configuration Supabase avec des valeurs par défaut pour éviter les erreurs
-    const supabaseUrl = String.fromEnvironment(
-      'SUPABASE_URL',
-      defaultValue: 'https://your-project.supabase.co', // Remplacez par votre URL
-    );
-    const supabaseAnonKey = String.fromEnvironment(
-      'SUPABASE_ANON_KEY', 
-      defaultValue: 'your-anon-key', // Remplacez par votre clé
-    );
+    // Charger les variables d'environnement depuis le fichier .env
+    String? envContent;
+    try {
+      envContent = await rootBundle.loadString('.env');
+      print('📄 Fichier .env chargé avec succès');
+    } catch (e) {
+      print('⚠️  Impossible de charger le fichier .env: $e');
+    }
+    
+    // Parser les variables d'environnement
+    String supabaseUrl = 'https://your-project.supabase.co';
+    String supabaseAnonKey = 'your-anon-key';
+    
+    if (envContent != null) {
+      final lines = envContent.split('\n');
+      for (final line in lines) {
+        if (line.trim().isEmpty || line.startsWith('#')) continue;
+        
+        final parts = line.split('=');
+        if (parts.length >= 2) {
+          final key = parts[0].trim();
+          final value = parts.sublist(1).join('=').trim();
+          
+          if (key == 'SUPABASE_URL') {
+            supabaseUrl = value;
+          } else if (key == 'SUPABASE_ANON_KEY') {
+            supabaseAnonKey = value;
+          }
+        }
+      }
+    }
     
     print('🔧 Configuration Supabase...');
     print('📍 URL: $supabaseUrl');
@@ -33,7 +55,7 @@ void main() async {
     if (supabaseUrl == 'https://your-project.supabase.co' || 
         supabaseAnonKey == 'your-anon-key') {
       print('⚠️  Variables d\'environnement par défaut détectées');
-      print('💡 Lancez avec: flutter run --dart-define-from-file=.env');
+      print('💡 Vérifiez votre fichier .env');
     }
     
     // Initialiser Supabase avec gestion d'erreur
@@ -108,7 +130,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _checkInitialization() async {
     try {
       // Attendre un peu pour s'assurer que Supabase est initialisé
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 1000));
       
       // Tester la connexion Supabase
       final client = Supabase.instance.client;
@@ -184,53 +206,69 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.warning_amber_rounded,
-                size: 80,
-                color: Colors.orange,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Problème de connexion',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 80,
+                  color: Colors.orange,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  'Vérifiez votre configuration Supabase',
+                const SizedBox(height: 16),
+                const Text(
+                  'Problème de configuration',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Vérifiez votre fichier .env avec vos vraies clés Supabase',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  // Continuer vers l'application même avec erreur
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WelcomePage(),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Votre fichier .env doit contenir:\n\nSUPABASE_URL=https://votre-projet.supabase.co\nSUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      color: AppColors.textSecondary,
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  ),
                 ),
-                child: const Text('Continuer quand même'),
-              ),
-            ],
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    // Continuer vers l'application même avec erreur
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WelcomePage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Continuer en mode démo'),
+                ),
+              ],
+            ),
           ),
         ),
       );
