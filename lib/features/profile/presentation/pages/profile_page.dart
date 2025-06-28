@@ -8,6 +8,7 @@ import 'edit_profile_page.dart';
 import 'favorites_page.dart';
 import 'history_page.dart';
 import 'settings_page.dart';
+import 'privacy_page.dart';
 import 'help_support_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -22,6 +23,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   bool _isLoading = true;
   int _favoritesCount = 0;
   int _historyCount = 0;
+  int _recipesCount = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -86,11 +88,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         final favorites = await SupabaseService.getUserFavorites();
         final history = await SupabaseService.getUserHistory();
         
+        // TODO: Compter les recettes créées par l'utilisateur
+        // final recipes = await SupabaseService.getUserRecipes(user.id);
+        
         if (mounted) {
           setState(() {
             _userProfile = profile;
             _favoritesCount = favorites.length;
             _historyCount = history.length;
+            _recipesCount = 0; // TODO: recipes.length
             _isLoading = false;
           });
           _animationController.forward();
@@ -104,6 +110,26 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         _animationController.forward();
       }
     }
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Bonjour';
+    } else if (hour < 18) {
+      return 'Bon après-midi';
+    } else {
+      return 'Bonsoir';
+    }
+  }
+
+  String _getDisplayName() {
+    final user = Supabase.instance.client.auth.currentUser;
+    return _userProfile?['display_name'] ??
+        user?.userMetadata?['display_name'] ?? 
+        user?.userMetadata?['full_name'] ?? 
+        user?.email?.split('@')[0] ?? 
+        'Utilisateur';
   }
 
   @override
@@ -226,6 +252,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       ),
       child: Column(
         children: [
+          // Salutation
+          Text(
+            _getGreeting(),
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.9),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          
           // Photo de profil avec animation
           Stack(
             children: [
@@ -247,11 +284,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     ),
                   ],
                 ),
-                child: user?.userMetadata?['avatar_url'] != null
-                    ? ClipOval(
-                        child: Image.network(
-                          user!.userMetadata!['avatar_url'],
+                child: ClipOval(
+                  child: _userProfile?['photo_url'] != null
+                      ? Image.network(
+                          _userProfile!['photo_url'],
                           fit: BoxFit.cover,
+                          width: 120,
+                          height: 120,
                           errorBuilder: (context, error, stackTrace) {
                             return const Icon(
                               Icons.person,
@@ -259,13 +298,27 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                               color: Colors.white,
                             );
                           },
-                        ),
-                      )
-                    : const Icon(
-                        Icons.person,
-                        size: 60,
-                        color: Colors.white,
-                      ),
+                        )
+                      : user?.userMetadata?['avatar_url'] != null
+                          ? Image.network(
+                              user!.userMetadata!['avatar_url'],
+                              fit: BoxFit.cover,
+                              width: 120,
+                              height: 120,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.person,
+                                  size: 60,
+                                  color: Colors.white,
+                                );
+                              },
+                            )
+                          : const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: Colors.white,
+                            ),
+                ),
               ),
               // Badge en ligne avec animation
               Positioned(
@@ -294,11 +347,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           
           // Nom de l'utilisateur
           Text(
-            _userProfile?['display_name'] ??
-            user?.userMetadata?['display_name'] ?? 
-            user?.userMetadata?['full_name'] ?? 
-            user?.email?.split('@')[0] ?? 
-            'Utilisateur',
+            _getDisplayName(),
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
@@ -317,6 +366,45 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             ),
             textAlign: TextAlign.center,
           ),
+          
+          // Bio si disponible
+          if (_userProfile?['bio'] != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _userProfile!['bio'],
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.8),
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          
+          // Localisation si disponible
+          if (_userProfile?['location'] != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.location_on,
+                  size: 16,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _userProfile!['location'],
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ],
           
           // Badge du provider
           if (user?.appMetadata?['provider'] == 'google') ...[
@@ -380,7 +468,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         Expanded(
           child: _buildStatCard(
             'Recettes',
-            '0', // TODO: Compter les recettes créées
+            _recipesCount.toString(),
             Icons.restaurant_menu,
             Colors.green,
             isDark,
@@ -510,7 +598,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           subtitle: 'Gérer vos notifications',
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Fonctionnalité à venir')),
+              const SnackBar(content: Text('Géré dans Paramètres > Confidentialité')),
             );
           },
           isDark: isDark,
@@ -520,10 +608,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           context,
           icon: Icons.security_rounded,
           title: 'Confidentialité',
-          subtitle: 'Paramètres de confidentialité',
+          subtitle: 'Paramètres de confidentialité et notifications',
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Fonctionnalité à venir')),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PrivacyPage(),
+              ),
             );
           },
           isDark: isDark,

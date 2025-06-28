@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/services/image_service.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
@@ -18,11 +20,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _displayNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _locationController = TextEditingController();
   
   bool _isLoading = false;
   bool _isLoadingProfile = true;
+  bool _isUploadingImage = false;
   String? _errorMessage;
   String? _successMessage;
+  String? _currentAvatarUrl;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -35,6 +42,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _displayNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _bioController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -53,6 +62,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
             _displayNameController.text = profile?['display_name'] ?? user.userMetadata?['display_name'] ?? '';
             _emailController.text = user.email ?? '';
             _phoneController.text = profile?['phone_number'] ?? '';
+            _bioController.text = profile?['bio'] ?? '';
+            _locationController.text = profile?['location'] ?? '';
+            _currentAvatarUrl = profile?['photo_url'];
+            
+            // Parse date of birth
+            if (profile?['date_of_birth'] != null) {
+              try {
+                _selectedDate = DateTime.parse(profile['date_of_birth']);
+              } catch (e) {
+                _selectedDate = null;
+              }
+            }
+            
             _isLoadingProfile = false;
           });
         }
@@ -98,6 +120,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
         phoneNumber: _phoneController.text.trim().isNotEmpty 
             ? _phoneController.text.trim() 
             : null,
+        additionalData: {
+          'bio': _bioController.text.trim().isNotEmpty 
+              ? _bioController.text.trim() 
+              : null,
+          'location': _locationController.text.trim().isNotEmpty 
+              ? _locationController.text.trim() 
+              : null,
+          'date_of_birth': _selectedDate?.toIso8601String().split('T')[0],
+        },
       );
 
       if (mounted) {
@@ -129,10 +160,106 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Future<void> _changeProfilePicture() async {
+    try {
+      // Afficher le sélecteur de source
+      final source = await ImageService.showImageSourceSelector(context);
+      if (source == null) return;
+
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      // Sélectionner l'image
+      final imageBytes = await ImageService.pickImage(
+        source: source,
+        maxWidth: 400,
+        maxHeight: 400,
+        imageQuality: 85,
+      );
+
+      if (imageBytes == null) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      // Uploader l'image
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final newAvatarUrl = await ImageService.uploadAvatar(
+          imageBytes: imageBytes,
+          userId: user.id,
+          oldAvatarUrl: _currentAvatarUrl,
+        );
+
+        if (mounted && newAvatarUrl != null) {
+          setState(() {
+            _currentAvatarUrl = newAvatarUrl;
+            _isUploadingImage = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo de profil mise à jour'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now().subtract(const Duration(days: 365 * 25)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (date != null) {
+      setState(() {
+        _selectedDate = date;
+      });
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Non renseignée';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(isDark),
       appBar: AppBar(
         title: const Text('Modifier le profil'),
         backgroundColor: AppColors.primary,
@@ -149,7 +276,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Photo de profil (placeholder)
+                      // Photo de profil
                       Center(
                         child: Stack(
                           children: [
@@ -163,33 +290,62 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   color: AppColors.primary.withOpacity(0.3),
                                   width: 2,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.getShadow(isDark),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
                               ),
-                              child: const Icon(
-                                Icons.person,
-                                size: 60,
-                                color: AppColors.primary,
-                              ),
+                              child: _isUploadingImage
+                                  ? const Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                      ),
+                                    )
+                                  : ClipOval(
+                                      child: _currentAvatarUrl != null
+                                          ? Image.network(
+                                              _currentAvatarUrl!,
+                                              fit: BoxFit.cover,
+                                              width: 120,
+                                              height: 120,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return const Icon(
+                                                  Icons.person,
+                                                  size: 60,
+                                                  color: AppColors.primary,
+                                                );
+                                              },
+                                            )
+                                          : const Icon(
+                                              Icons.person,
+                                              size: 60,
+                                              color: AppColors.primary,
+                                            ),
+                                    ),
                             ),
                             Positioned(
                               bottom: 0,
                               right: 0,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.primary,
-                                ),
-                                child: IconButton(
-                                  onPressed: () {
-                                    // TODO: Implémenter la sélection d'image
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Fonctionnalité à venir'),
+                              child: GestureDetector(
+                                onTap: _isUploadingImage ? null : _changeProfilePicture,
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primary,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.primary.withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
                                       ),
-                                    );
-                                  },
-                                  icon: const Icon(
+                                    ],
+                                  ),
+                                  child: const Icon(
                                     Icons.camera_alt,
                                     color: Colors.white,
                                     size: 18,
@@ -313,6 +469,82 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      CustomTextField(
+                        label: 'Bio (optionnel)',
+                        controller: _bioController,
+                        maxLines: 3,
+                        hint: 'Parlez-nous de vous...',
+                        prefixIcon: const Icon(
+                          Icons.edit_outlined,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      CustomTextField(
+                        label: 'Localisation (optionnel)',
+                        controller: _locationController,
+                        hint: 'Ville, Pays',
+                        prefixIcon: const Icon(
+                          Icons.location_on_outlined,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Date de naissance
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Date de naissance (optionnel)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.getTextPrimary(isDark),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: _selectDate,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.getSurface(isDark),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.getBorder(isDark)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    color: AppColors.getTextSecondary(isDark),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    _formatDate(_selectedDate),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: _selectedDate != null 
+                                          ? AppColors.getTextPrimary(isDark)
+                                          : AppColors.getTextSecondary(isDark),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Icon(
+                                    Icons.arrow_drop_down,
+                                    color: AppColors.getTextSecondary(isDark),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 32),
 
                       // Bouton de sauvegarde
@@ -331,18 +563,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             final shouldSignOut = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('Déconnexion'),
-                                content: const Text(
+                                backgroundColor: AppColors.getCardBackground(isDark),
+                                title: Text(
+                                  'Déconnexion',
+                                  style: TextStyle(color: AppColors.getTextPrimary(isDark)),
+                                ),
+                                content: Text(
                                   'Êtes-vous sûr de vouloir vous déconnecter ?',
+                                  style: TextStyle(color: AppColors.getTextSecondary(isDark)),
                                 ),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('Annuler'),
+                                    child: Text(
+                                      'Annuler',
+                                      style: TextStyle(color: AppColors.getTextSecondary(isDark)),
+                                    ),
                                   ),
                                   TextButton(
                                     onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('Déconnexion'),
+                                    child: const Text(
+                                      'Déconnexion',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
                                   ),
                                 ],
                               ),
