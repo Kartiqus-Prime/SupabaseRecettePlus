@@ -1,16 +1,25 @@
 class SupabaseOptions {
-  // Configuration depuis les variables d'environnement
-  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-  static const String supabaseServiceRoleKey = String.fromEnvironment('SUPABASE_SERVICE_ROLE_KEY');
+  // Configuration depuis les variables d'environnement avec valeurs par défaut
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://your-project.supabase.co',
+  );
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'your-anon-key',
+  );
+  static const String supabaseServiceRoleKey = String.fromEnvironment(
+    'SUPABASE_SERVICE_ROLE_KEY',
+    defaultValue: 'your-service-role-key',
+  );
   
   // Table names basées sur votre structure db.json
   static const String usersTable = 'profiles';
   static const String recipesTable = 'recipes';
   static const String productsTable = 'products';
   static const String favoritesTable = 'favorites';
-  static const String historyTable = 'user_history'; // À créer si nécessaire
-  static const String ordersTable = 'orders'; // À créer si nécessaire
+  static const String historyTable = 'user_history';
+  static const String ordersTable = 'orders';
   static const String videosTable = 'videos';
   static const String cartItemsTable = 'cart_items';
   static const String recipeCartsTable = 'recipe_carts';
@@ -40,4 +49,17 @@ class SupabaseOptions {
   static const String productImagesBucket = 'product-images';
   static const String videosBucket = 'videos';
   static const String thumbnailsBucket = 'thumbnails';
+  
+  // Méthodes utilitaires
+  static bool get isConfigured {
+    return supabaseUrl != 'https://your-project.supabase.co' &&
+           supabaseAnonKey != 'your-anon-key';
+  }
+  
+  static void printConfiguration() {
+    print('🔧 Configuration Supabase:');
+    print('📍 URL: $supabaseUrl');
+    print('🔑 Anon Key: ${supabaseAnonKey.length > 20 ? '${supabaseAnonKey.substring(0, 20)}...' : 'Non définie'}');
+    print('✅ Configuré: ${isConfigured ? 'Oui' : 'Non'}');
+  }
 }
