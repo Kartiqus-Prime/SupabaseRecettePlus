@@ -50,7 +50,7 @@ class _SignUpPageState extends State<SignUpPage> {
     try {
       final AuthResponse response = await _supabase.auth.signUp(
         email: _emailController.text.trim(),
-        password: _passwordController.text,
+        password: _passwordController.text.trim(),
         data: {
           'display_name': _fullNameController.text.trim(),
           'phone_number': _phoneController.text.trim().isNotEmpty 
@@ -59,8 +59,8 @@ class _SignUpPageState extends State<SignUpPage> {
         },
       );
 
-      // Créer le profil utilisateur dans la base de données
       if (response.user != null) {
+        // Créer le profil utilisateur dans la base de données
         await SupabaseService.createUserProfile(
           uid: response.user!.id,
           displayName: _fullNameController.text.trim(),
@@ -85,12 +85,14 @@ class _SignUpPageState extends State<SignUpPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Une erreur inattendue s\'est produite';
+        _errorMessage = 'Erreur inattendue: $e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -101,10 +103,10 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
-      // Utiliser la méthode OAuth native de Supabase
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: 'io.supabase.recetteplus://login-callback/',
+        authScreenLaunchMode: LaunchMode.externalApplication,
       );
     } on AuthException catch (e) {
       setState(() {
@@ -112,12 +114,14 @@ class _SignUpPageState extends State<SignUpPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur de connexion Google. Veuillez réessayer.';
+        _errorMessage = 'Erreur de connexion Google: $e';
       });
     } finally {
-      setState(() {
-        _isGoogleLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
     }
   }
 
@@ -128,8 +132,10 @@ class _SignUpPageState extends State<SignUpPage> {
       return 'Le mot de passe doit contenir au moins 6 caractères.';
     } else if (message.contains('Unable to validate email address')) {
       return 'Adresse e-mail invalide.';
+    } else if (message.contains('Signup is disabled')) {
+      return 'L\'inscription est temporairement désactivée.';
     }
-    return 'Erreur lors de l\'inscription';
+    return 'Erreur d\'inscription: $message';
   }
 
   @override

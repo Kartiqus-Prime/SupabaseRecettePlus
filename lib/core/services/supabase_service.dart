@@ -15,7 +15,8 @@ class SupabaseService {
     String role = 'user',
   }) async {
     try {
-      await _client.from(SupabaseOptions.usersTable).insert({
+      // Utiliser la table 'profiles' qui correspond à votre structure DB
+      await _client.from('profiles').insert({
         'id': uid,
         'display_name': displayName,
         'email': email,
@@ -41,7 +42,7 @@ class SupabaseService {
       if (userId == null) return null;
 
       final response = await _client
-          .from(SupabaseOptions.usersTable)
+          .from('profiles')
           .select()
           .eq('id', userId)
           .single();
@@ -71,7 +72,7 @@ class SupabaseService {
       if (additionalData != null) updateData.addAll(additionalData);
 
       await _client
-          .from(SupabaseOptions.usersTable)
+          .from('profiles')
           .update(updateData)
           .eq('id', uid);
 
@@ -92,7 +93,7 @@ class SupabaseService {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Utilisateur non connecté');
 
-      await _client.from(SupabaseOptions.favoritesTable).insert({
+      await _client.from('favorites').insert({
         'user_id': userId,
         'item_id': itemId,
         'type': type, // 'recipe', 'product', etc.
@@ -115,7 +116,7 @@ class SupabaseService {
       if (userId == null) throw Exception('Utilisateur non connecté');
 
       await _client
-          .from(SupabaseOptions.favoritesTable)
+          .from('favorites')
           .delete()
           .eq('user_id', userId)
           .eq('item_id', itemId);
@@ -137,7 +138,7 @@ class SupabaseService {
       if (userId == null) return [];
 
       var query = _client
-          .from(SupabaseOptions.favoritesTable)
+          .from('favorites')
           .select()
           .eq('user_id', userId);
 
@@ -162,7 +163,7 @@ class SupabaseService {
       if (userId == null) return false;
 
       final response = await _client
-          .from(SupabaseOptions.favoritesTable)
+          .from('favorites')
           .select('id')
           .eq('user_id', userId)
           .eq('item_id', itemId)
@@ -255,7 +256,7 @@ class SupabaseService {
     int limit = 20,
   }) async {
     try {
-      var query = _client.from(SupabaseOptions.recipesTable).select();
+      var query = _client.from('recipes').select();
 
       if (category != null && category.isNotEmpty) {
         query = query.eq('category', category);
@@ -294,7 +295,7 @@ class SupabaseService {
     int limit = 20,
   }) async {
     try {
-      var query = _client.from(SupabaseOptions.productsTable).select();
+      var query = _client.from('products').select();
 
       if (category != null && category.isNotEmpty) {
         query = query.eq('category', category);

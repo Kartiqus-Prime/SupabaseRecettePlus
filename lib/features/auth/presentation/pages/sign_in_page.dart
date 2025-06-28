@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/social_button.dart';
@@ -42,18 +43,32 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      await _supabase.auth.signInWithPassword(
+      final AuthResponse response = await _supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
-        password: _passwordController.text,
+        password: _passwordController.text.trim(),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connexion réussie !'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+      if (response.user != null) {
+        // Vérifier si le profil existe, sinon le créer
+        final existingProfile = await SupabaseService.getUserProfile(response.user!.id);
+        
+        if (existingProfile == null) {
+          await SupabaseService.createUserProfile(
+            uid: response.user!.id,
+            displayName: response.user!.userMetadata?['display_name'] ?? 
+                         response.user!.email?.split('@')[0] ?? 'Utilisateur',
+            email: response.user!.email ?? '',
+          );
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connexion réussie !'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
       }
     } on AuthException catch (e) {
       setState(() {
@@ -61,12 +76,14 @@ class _SignInPageState extends State<SignInPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = AppStrings.unknownError;
+        _errorMessage = 'Erreur inattendue: $e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -77,10 +94,11 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      // Utiliser la méthode OAuth native de Supabase
+      // Utiliser la méthode OAuth native de Supabase pour le web/mobile
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: 'io.supabase.recetteplus://login-callback/',
+        authScreenLaunchMode: LaunchMode.externalApplication,
       );
     } on AuthException catch (e) {
       setState(() {
@@ -88,12 +106,14 @@ class _SignInPageState extends State<SignInPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur de connexion Google. Veuillez réessayer.';
+        _errorMessage = 'Erreur de connexion Google: $e';
       });
     } finally {
-      setState(() {
-        _isGoogleLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
     }
   }
 
@@ -104,8 +124,10 @@ class _SignInPageState extends State<SignInPage> {
       return 'Veuillez confirmer votre email avant de vous connecter.';
     } else if (message.contains('Too many requests')) {
       return 'Trop de tentatives. Veuillez réessayer plus tard.';
+    } else if (message.contains('User not found')) {
+      return 'Aucun compte trouvé avec cet email.';
     }
-    return AppStrings.signInError;
+    return 'Erreur de connexion: $message';
   }
 
   @override

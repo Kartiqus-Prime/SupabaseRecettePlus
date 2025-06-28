@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'supabase_options.dart';
 import 'features/auth/presentation/pages/welcome_page.dart';
 import 'features/recipes/presentation/pages/recipes_page.dart';
 import 'features/products/presentation/pages/products_page.dart';
@@ -12,11 +12,27 @@ import 'core/constants/app_colors.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialiser Supabase avec les variables d'environnement
+  // Charger les variables d'environnement depuis le fichier .env
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  
+  // Vérifier que les variables sont définies
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    throw Exception('Variables d\'environnement Supabase manquantes. Assurez-vous de lancer avec --dart-define-from-file=.env');
+  }
+  
+  print('🔧 Initialisation Supabase...');
+  print('📍 URL: $supabaseUrl');
+  print('🔑 Anon Key: ${supabaseAnonKey.substring(0, 20)}...');
+  
+  // Initialiser Supabase
   await Supabase.initialize(
-    url: SupabaseOptions.supabaseUrl,
-    anonKey: SupabaseOptions.supabaseAnonKey,
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+    debug: true, // Activer les logs pour le debug
   );
+  
+  print('✅ Supabase initialisé avec succès');
   
   runApp(const RecettePlusApp());
 }
@@ -68,14 +84,32 @@ class AuthWrapper extends StatelessWidget {
           return const Scaffold(
             backgroundColor: AppColors.background,
             body: Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Chargement...',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
             ),
           );
         }
 
         final session = snapshot.hasData ? snapshot.data!.session : null;
+        
+        print('🔐 État d\'authentification: ${session != null ? 'Connecté' : 'Déconnecté'}');
+        if (session != null) {
+          print('👤 Utilisateur: ${session.user.email}');
+        }
         
         if (session != null) {
           return const MainNavigationPage();
