@@ -6,4 +6,4 @@ android/*
 assets/*
 .env
 .env.example
-db.json
+
