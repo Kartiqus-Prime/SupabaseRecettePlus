@@ -13,7 +13,7 @@ class GoogleAuthService {
       'profile',
     ],
     // Utiliser le client ID web pour Supabase
-    serverClientId: 'YOUR_GOOGLE_WEB_CLIENT_ID', // À remplacer par votre vrai client ID
+    serverClientId: '361640124056-aipd8mae8vjocm6v9hn7r4qdasp9thml.apps.googleusercontent.com', // À remplacer par votre vrai client ID
   );
 
   /// Connexion Google native pour Android
