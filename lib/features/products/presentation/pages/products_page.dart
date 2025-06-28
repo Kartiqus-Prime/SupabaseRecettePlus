@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/services/cart_service.dart';
 import '../../../../core/utils/currency_utils.dart';
+import 'preconfigured_carts_page.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -354,11 +355,11 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   void _viewAllPreconfiguredCarts() {
     HapticFeedback.mediumImpact();
     
-    // TODO: Naviguer vers la page dédiée aux paniers préconfigurés
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Page des paniers préconfigurés'),
-        backgroundColor: AppColors.primary,
+    // Navigation vers la page dédiée aux paniers préconfigurés
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PreconfiguredCartsPage(),
       ),
     );
   }
