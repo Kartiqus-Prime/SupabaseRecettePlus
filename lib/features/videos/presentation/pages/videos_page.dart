@@ -23,23 +23,36 @@ class _VideosPageState extends State<VideosPage> {
   void initState() {
     super.initState();
     _loadVideos();
-    // Configuration de la barre de statut pour les vidéos - icônes claires sur fond sombre
+    // Configuration de la barre de statut pour les vidéos - icônes CLAIRES sur fond SOMBRE
+    _updateStatusBarForVideos();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    // Restaurer la barre de statut normale selon le thème système
+    _restoreStatusBar();
+    super.dispose();
+  }
+
+  void _updateStatusBarForVideos() {
+    // Pour la page vidéos : fond noir avec icônes blanches/claires
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light, // Icônes claires
-        statusBarBrightness: Brightness.dark, // Fond sombre
+        statusBarIconBrightness: Brightness.light, // Icônes CLAIRES (blanches)
+        statusBarBrightness: Brightness.dark, // Fond SOMBRE
         systemNavigationBarColor: Colors.black,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    // Restaurer la barre de statut normale selon le thème
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  void _restoreStatusBar() {
+    // Restaurer selon le thème de l'application
+    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final isDark = brightness == Brightness.dark;
+    
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -49,7 +62,6 @@ class _VideosPageState extends State<VideosPage> {
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
     );
-    super.dispose();
   }
 
   Future<void> _loadVideos() async {
@@ -369,31 +381,51 @@ class _VideosPageState extends State<VideosPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      // Garder la barre de statut visible avec un overlay transparent
-      body: Container(
-        // Ajouter un padding en haut pour la barre de statut
-        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-        child: PageView.builder(
-          controller: _pageController,
-          scrollDirection: Axis.vertical,
-          onPageChanged: _onPageChanged,
-          itemCount: _videos.length,
-          physics: const BouncingScrollPhysics(), // Scroll plus fluide
-          // Supprimer la barre de défilement
-          itemBuilder: (context, index) {
-            final video = _videos[index];
-            return VideoPlayerWidget(
-              video: video,
-              isActive: index == _currentIndex,
-              onLike: () => _likeVideo(
-                video['id'], 
-                (video['likes'] is int) ? video['likes'] : int.tryParse(video['likes'].toString()) ?? 0,
+      // Utiliser un Stack pour superposer la barre de statut
+      body: Stack(
+        children: [
+          // Contenu principal des vidéos
+          PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            onPageChanged: _onPageChanged,
+            itemCount: _videos.length,
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, index) {
+              final video = _videos[index];
+              return VideoPlayerWidget(
+                video: video,
+                isActive: index == _currentIndex,
+                onLike: () => _likeVideo(
+                  video['id'], 
+                  (video['likes'] is int) ? video['likes'] : int.tryParse(video['likes'].toString()) ?? 0,
+                ),
+                onShare: () => _shareVideo(video),
+                onShowRecipe: () => _showRecipe(video['recipe_id']),
+              );
+            },
+          ),
+          
+          // Zone de la barre de statut avec fond semi-transparent pour améliorer la visibilité
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).padding.top,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.3), // Fond semi-transparent en haut
+                    Colors.transparent, // Transparent en bas
+                  ],
+                ),
               ),
-              onShare: () => _shareVideo(video),
-              onShowRecipe: () => _showRecipe(video['recipe_id']),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
