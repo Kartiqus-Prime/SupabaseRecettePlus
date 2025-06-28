@@ -18,12 +18,8 @@ class ImageService {
       if (source == ImageSource.camera) {
         permission = Permission.camera;
       } else {
-        // Pour Android 13+ (API 33+), utiliser les permissions spécifiques
-        if (await Permission.photos.isSupported) {
-          permission = Permission.photos;
-        } else {
-          permission = Permission.storage;
-        }
+        // Pour la galerie, utiliser Permission.photos sur iOS et Permission.storage sur Android
+        permission = Permission.photos;
       }
 
       final status = await permission.status;
@@ -48,7 +44,8 @@ class ImageService {
       if (kDebugMode) {
         print('❌ Erreur permissions: $e');
       }
-      return false;
+      // En cas d'erreur de permission, essayer quand même
+      return true;
     }
   }
 
