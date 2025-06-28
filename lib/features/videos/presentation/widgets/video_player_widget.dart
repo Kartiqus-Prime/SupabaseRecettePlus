@@ -28,20 +28,30 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
   bool _showControls = true;
   late AnimationController _heartAnimationController;
   late Animation<double> _heartAnimation;
+  late Animation<double> _heartScaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _heartAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
+    
     _heartAnimation = Tween<double>(
       begin: 1.0,
-      end: 1.3,
+      end: 1.2,
     ).animate(CurvedAnimation(
       parent: _heartAnimationController,
       curve: Curves.elasticOut,
+    ));
+
+    _heartScaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.5,
+    ).animate(CurvedAnimation(
+      parent: _heartAnimationController,
+      curve: Curves.easeInOut,
     ));
 
     // Auto-play si la vidéo est active
@@ -110,6 +120,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     return number.toString();
   }
 
+  String _formatDuration(int? seconds) {
+    if (seconds == null) return '';
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -163,7 +180,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.3),
+                      Colors.black.withOpacity(0.4),
                     ],
                   ),
                 ),
@@ -175,11 +192,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
               Center(
                 child: GestureDetector(
                   onTap: _togglePlayPause,
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withOpacity(0.6),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -194,7 +212,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
             // Informations de la vidéo (côté gauche)
             Positioned(
               left: 16,
-              bottom: 100,
+              bottom: 120,
               right: 80,
               child: AnimatedOpacity(
                 opacity: _showControls ? 1.0 : 0.0,
@@ -210,6 +228,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(1, 1),
+                            blurRadius: 3,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -223,14 +248,23 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(1, 1),
+                              blurRadius: 2,
+                              color: Colors.black54,
+                            ),
+                          ],
                         ),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                     const SizedBox(height: 12),
 
-                    // Catégorie et vues
-                    Row(
+                    // Catégorie, vues et durée
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -238,7 +272,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.8),
+                            color: AppColors.primary.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -246,24 +280,69 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.visibility,
-                          size: 16,
-                          color: Colors.white70,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatNumber(widget.video['views'] ?? 0),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.visibility,
+                                size: 14,
+                                color: Colors.white70,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatNumber(widget.video['views'] ?? 0),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        if (widget.video['duration'] != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.white70,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatDuration(widget.video['duration']),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -274,14 +353,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
             // Actions (côté droit)
             Positioned(
               right: 16,
-              bottom: 100,
+              bottom: 120,
               child: AnimatedOpacity(
                 opacity: _showControls ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 300),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Bouton like
+                    // Bouton like avec animation
                     GestureDetector(
                       onTap: _onLike,
                       child: AnimatedBuilder(
@@ -290,69 +369,133 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                           return Transform.scale(
                             scale: _heartAnimation.value,
                             child: Container(
-                              width: 50,
-                              height: 50,
+                              width: 56,
+                              height: 56,
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withOpacity(0.4),
                                 shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: const Icon(
                                 Icons.favorite,
                                 color: Colors.red,
-                                size: 24,
+                                size: 28,
                               ),
                             ),
                           );
                         },
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       _formatNumber(widget.video['likes'] ?? 0),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(1, 1),
+                            blurRadius: 2,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
                     // Bouton partage
                     GestureDetector(
                       onTap: widget.onShare,
                       child: Container(
-                        width: 50,
-                        height: 50,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withOpacity(0.4),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: const Icon(
                           Icons.share,
                           color: Colors.white,
-                          size: 24,
+                          size: 28,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Partager',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(1, 1),
+                            blurRadius: 2,
+                            color: Colors.black54,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
                     // Bouton recette (si disponible)
                     if (widget.video['recipe_id'] != null)
-                      GestureDetector(
-                        onTap: widget.onShowRecipe,
-                        child: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.8),
-                            shape: BoxShape.circle,
+                      Column(
+                        children: [
+                          GestureDetector(
+                            onTap: widget.onShowRecipe,
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.9),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withOpacity(0.4),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.restaurant_menu,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.restaurant_menu,
-                            color: Colors.white,
-                            size: 24,
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Recette',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(1, 1),
+                                  blurRadius: 2,
+                                  color: Colors.black54,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                   ],
                 ),
@@ -362,7 +505,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
             // Barre de progression (en bas)
             if (_showControls)
               Positioned(
-                bottom: 20,
+                bottom: 40,
                 left: 16,
                 right: 16,
                 child: Container(
@@ -378,6 +521,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.5),
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
                     ),
                   ),

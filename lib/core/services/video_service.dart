@@ -1,14 +1,16 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../../supabase_options.dart';
+import 'dart:math';
 
 class VideoService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  // Obtenir toutes les vidéos
+  // Obtenir toutes les vidéos avec mélange aléatoire
   static Future<List<Map<String, dynamic>>> getVideos({
     String? category,
-    int limit = 20,
+    int limit = 50,
+    bool shuffle = true,
   }) async {
     try {
       var query = _client.from('videos').select();
@@ -21,7 +23,14 @@ class VideoService {
           .order('created_at', ascending: false)
           .limit(limit);
 
-      return List<Map<String, dynamic>>.from(response);
+      List<Map<String, dynamic>> videos = List<Map<String, dynamic>>.from(response);
+      
+      // Mélanger les vidéos pour un ordre aléatoire
+      if (shuffle && videos.isNotEmpty) {
+        videos.shuffle(Random());
+      }
+
+      return videos;
     } catch (e) {
       if (kDebugMode) {
         print('❌ Erreur récupération vidéos: $e');
@@ -48,16 +57,17 @@ class VideoService {
     }
   }
 
-  // Incrémenter les vues
+  // Incrémenter les vues avec gestion d'erreur améliorée
   static Future<void> incrementViews(String videoId) async {
     try {
-      // Utiliser une fonction SQL pour incrémenter atomiquement
+      // Essayer d'abord avec la fonction SQL
       await _client.rpc('increment_video_views', params: {'video_id': videoId});
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Erreur incrémentation vues: $e');
+        print('⚠️  Erreur fonction SQL, utilisation du fallback: $e');
       }
-      // Fallback: mise à jour manuelle
+      
+      // Fallback: mise à jour manuelle sans updated_at
       try {
         final video = await getVideoById(videoId);
         if (video != null) {
@@ -66,6 +76,10 @@ class VideoService {
               .from('videos')
               .update({'views': currentViews + 1})
               .eq('id', videoId);
+          
+          if (kDebugMode) {
+            print('✅ Vues incrémentées avec fallback');
+          }
         }
       } catch (fallbackError) {
         if (kDebugMode) {
@@ -75,16 +89,17 @@ class VideoService {
     }
   }
 
-  // Liker une vidéo
+  // Liker une vidéo avec gestion d'erreur améliorée
   static Future<void> likeVideo(String videoId) async {
     try {
-      // Utiliser une fonction SQL pour incrémenter atomiquement
+      // Essayer d'abord avec la fonction SQL
       await _client.rpc('increment_video_likes', params: {'video_id': videoId});
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Erreur like vidéo: $e');
+        print('⚠️  Erreur fonction SQL, utilisation du fallback: $e');
       }
-      // Fallback: mise à jour manuelle
+      
+      // Fallback: mise à jour manuelle sans updated_at
       try {
         final video = await getVideoById(videoId);
         if (video != null) {
@@ -93,12 +108,47 @@ class VideoService {
               .from('videos')
               .update({'likes': currentLikes + 1})
               .eq('id', videoId);
+          
+          if (kDebugMode) {
+            print('✅ Like ajouté avec fallback');
+          }
         }
       } catch (fallbackError) {
         if (kDebugMode) {
           print('❌ Erreur fallback like vidéo: $fallbackError');
         }
       }
+    }
+  }
+
+  // Obtenir des vidéos infinies (pour le scroll infini)
+  static Future<List<Map<String, dynamic>>> getInfiniteVideos({
+    int batchSize = 10,
+    List<String> excludeIds = const [],
+  }) async {
+    try {
+      var query = _client.from('videos').select();
+      
+      // Exclure les vidéos déjà vues
+      if (excludeIds.isNotEmpty) {
+        query = query.not('id', 'in', '(${excludeIds.join(',')})');
+      }
+
+      final response = await query
+          .order('created_at', ascending: false)
+          .limit(batchSize);
+
+      List<Map<String, dynamic>> videos = List<Map<String, dynamic>>.from(response);
+      
+      // Mélanger pour un ordre aléatoire
+      videos.shuffle(Random());
+
+      return videos;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erreur récupération vidéos infinies: $e');
+      }
+      return [];
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/video_service.dart';
 import '../widgets/video_player_widget.dart';
+import 'dart:math';
 
 class VideosPage extends StatefulWidget {
   const VideosPage({super.key});
@@ -16,20 +17,35 @@ class _VideosPageState extends State<VideosPage> {
   List<Map<String, dynamic>> _videos = [];
   bool _isLoading = true;
   int _currentIndex = 0;
+  final Set<String> _viewedVideoIds = {};
 
   @override
   void initState() {
     super.initState();
     _loadVideos();
-    // Masquer la barre de statut pour une expérience plein écran
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Garder la barre de statut visible mais transparente
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    // Restaurer la barre de statut
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Restaurer la barre de statut normale
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
     super.dispose();
   }
 
@@ -39,8 +55,8 @@ class _VideosPageState extends State<VideosPage> {
     });
 
     try {
-      // Charger des vidéos d'exemple si la base de données n'est pas configurée
-      final videos = await VideoService.getVideos(limit: 50);
+      // Charger des vidéos avec mélange aléatoire
+      final videos = await VideoService.getVideos(limit: 50, shuffle: true);
       
       // Si aucune vidéo en base, utiliser des données d'exemple
       if (videos.isEmpty) {
@@ -48,6 +64,9 @@ class _VideosPageState extends State<VideosPage> {
       } else {
         _videos = videos;
       }
+      
+      // Mélanger encore une fois pour plus d'aléatoire
+      _videos.shuffle(Random());
       
       if (mounted) {
         setState(() {
@@ -66,7 +85,7 @@ class _VideosPageState extends State<VideosPage> {
   }
 
   List<Map<String, dynamic>> _getSampleVideos() {
-    return [
+    final sampleVideos = [
       {
         'id': '1',
         'title': 'Pasta Carbonara Authentique',
@@ -132,7 +151,50 @@ class _VideosPageState extends State<VideosPage> {
         'recipe_id': 'recipe_5',
         'created_at': DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
       },
+      {
+        'id': '6',
+        'title': 'Salade César Parfaite',
+        'description': 'Les secrets d\'une salade César comme au restaurant',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/2097090/pexels-photo-2097090.jpeg',
+        'duration': 150,
+        'views': 9876,
+        'likes': 543,
+        'category': 'Entrées',
+        'recipe_id': 'recipe_6',
+        'created_at': DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
+      },
+      {
+        'id': '7',
+        'title': 'Croissants Maison',
+        'description': 'Réalisez de vrais croissants français chez vous',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/2067396/pexels-photo-2067396.jpeg',
+        'duration': 420,
+        'views': 31250,
+        'likes': 1876,
+        'category': 'Boulangerie',
+        'recipe_id': 'recipe_7',
+        'created_at': DateTime.now().subtract(const Duration(minutes: 30)).toIso8601String(),
+      },
+      {
+        'id': '8',
+        'title': 'Soupe de Légumes d\'Hiver',
+        'description': 'Une soupe réconfortante pour les jours froids',
+        'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+        'thumbnail': 'https://images.pexels.com/photos/539451/pexels-photo-539451.jpeg',
+        'duration': 200,
+        'views': 7654,
+        'likes': 432,
+        'category': 'Soupes',
+        'recipe_id': 'recipe_8',
+        'created_at': DateTime.now().subtract(const Duration(minutes: 15)).toIso8601String(),
+      },
     ];
+    
+    // Mélanger les vidéos d'exemple
+    sampleVideos.shuffle(Random());
+    return sampleVideos;
   }
 
   void _onPageChanged(int index) {
@@ -143,9 +205,45 @@ class _VideosPageState extends State<VideosPage> {
     // Incrémenter les vues de la vidéo
     if (_videos.isNotEmpty && index < _videos.length) {
       final videoId = _videos[index]['id'];
-      if (videoId != null) {
+      if (videoId != null && !_viewedVideoIds.contains(videoId)) {
+        _viewedVideoIds.add(videoId);
         VideoService.incrementViews(videoId);
       }
+    }
+    
+    // Charger plus de vidéos quand on approche de la fin (scroll infini)
+    if (index >= _videos.length - 3) {
+      _loadMoreVideos();
+    }
+  }
+
+  Future<void> _loadMoreVideos() async {
+    try {
+      // Obtenir des vidéos supplémentaires en excluant celles déjà vues
+      final moreVideos = await VideoService.getInfiniteVideos(
+        batchSize: 10,
+        excludeIds: _videos.map((v) => v['id'].toString()).toList(),
+      );
+      
+      if (moreVideos.isNotEmpty) {
+        setState(() {
+          _videos.addAll(moreVideos);
+        });
+      } else {
+        // Si plus de nouvelles vidéos, remélanger les existantes
+        final shuffledVideos = List<Map<String, dynamic>>.from(_videos);
+        shuffledVideos.shuffle(Random());
+        setState(() {
+          _videos.addAll(shuffledVideos.take(5)); // Ajouter 5 vidéos remélangées
+        });
+      }
+    } catch (e) {
+      // En cas d'erreur, remélanger les vidéos existantes
+      final shuffledVideos = List<Map<String, dynamic>>.from(_videos);
+      shuffledVideos.shuffle(Random());
+      setState(() {
+        _videos.addAll(shuffledVideos.take(3));
+      });
     }
   }
 
@@ -164,19 +262,25 @@ class _VideosPageState extends State<VideosPage> {
       // Feedback haptique
       HapticFeedback.lightImpact();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
-      );
+      // Erreur silencieuse pour ne pas perturber l'expérience utilisateur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
     }
   }
 
   void _shareVideo(Map<String, dynamic> video) {
-    // TODO: Implémenter le partage
     HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Partage de: ${video['title']}'),
         duration: const Duration(seconds: 1),
+        backgroundColor: AppColors.primary,
       ),
     );
   }
@@ -192,12 +296,19 @@ class _VideosPageState extends State<VideosPage> {
       return;
     }
     
-    // TODO: Naviguer vers la page de recette
     HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Ouverture de la recette: $recipeId'),
         duration: const Duration(seconds: 2),
+        backgroundColor: AppColors.primary,
+        action: SnackBarAction(
+          label: 'Voir',
+          textColor: Colors.white,
+          onPressed: () {
+            // TODO: Naviguer vers la page de recette
+          },
+        ),
       ),
     );
   }
@@ -209,7 +320,7 @@ class _VideosPageState extends State<VideosPage> {
         backgroundColor: Colors.black,
         body: Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
           ),
         ),
       );
@@ -218,34 +329,36 @@ class _VideosPageState extends State<VideosPage> {
     if (_videos.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.video_library_outlined,
-                size: 80,
-                color: Colors.white54,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Aucune vidéo disponible',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.video_library_outlined,
+                  size: 80,
+                  color: Colors.white54,
                 ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loadVideos,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                const SizedBox(height: 16),
+                const Text(
+                  'Aucune vidéo disponible',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                child: const Text('Réessayer'),
-              ),
-            ],
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _loadVideos,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Réessayer'),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -253,51 +366,28 @@ class _VideosPageState extends State<VideosPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // PageView pour le scroll vertical des vidéos
-          PageView.builder(
-            controller: _pageController,
-            scrollDirection: Axis.vertical,
-            onPageChanged: _onPageChanged,
-            itemCount: _videos.length,
-            itemBuilder: (context, index) {
-              final video = _videos[index];
-              return VideoPlayerWidget(
-                video: video,
-                isActive: index == _currentIndex,
-                onLike: () => _likeVideo(
-                  video['id'], 
-                  video['likes'] ?? 0,
-                ),
-                onShare: () => _shareVideo(video),
-                onShowRecipe: () => _showRecipe(video['recipe_id']),
-              );
-            },
-          ),
-          
-          // Indicateur de position (optionnel)
-          if (_videos.length > 1)
-            Positioned(
-              right: 8,
-              top: MediaQuery.of(context).size.height * 0.4,
-              child: Column(
-                children: List.generate(_videos.length, (index) {
-                  return Container(
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                    width: 3,
-                    height: index == _currentIndex ? 20 : 8,
-                    decoration: BoxDecoration(
-                      color: index == _currentIndex 
-                          ? Colors.white 
-                          : Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  );
-                }),
+      body: SafeArea(
+        top: false, // Permettre à la vidéo d'aller sous la barre de statut
+        child: PageView.builder(
+          controller: _pageController,
+          scrollDirection: Axis.vertical,
+          onPageChanged: _onPageChanged,
+          itemCount: _videos.length,
+          physics: const BouncingScrollPhysics(), // Scroll plus fluide
+          itemBuilder: (context, index) {
+            final video = _videos[index];
+            return VideoPlayerWidget(
+              video: video,
+              isActive: index == _currentIndex,
+              onLike: () => _likeVideo(
+                video['id'], 
+                video['likes'] ?? 0,
               ),
-            ),
-        ],
+              onShare: () => _shareVideo(video),
+              onShowRecipe: () => _showRecipe(video['recipe_id']),
+            );
+          },
+        ),
       ),
     );
   }
