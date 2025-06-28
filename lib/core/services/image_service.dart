@@ -3,51 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../utils/image_utils.dart';
 
 class ImageService {
   static final SupabaseClient _client = Supabase.instance.client;
   static final ImagePicker _picker = ImagePicker();
-
-  /// Vérifier et demander les permissions nécessaires
-  static Future<bool> _requestPermissions(ImageSource source) async {
-    try {
-      Permission permission;
-      
-      if (source == ImageSource.camera) {
-        permission = Permission.camera;
-      } else {
-        // Pour la galerie, utiliser Permission.photos sur iOS et Permission.storage sur Android
-        permission = Permission.photos;
-      }
-
-      final status = await permission.status;
-      
-      if (status.isGranted) {
-        return true;
-      }
-      
-      if (status.isDenied) {
-        final result = await permission.request();
-        return result.isGranted;
-      }
-      
-      if (status.isPermanentlyDenied) {
-        // Rediriger vers les paramètres
-        await openAppSettings();
-        return false;
-      }
-      
-      return false;
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur permissions: $e');
-      }
-      // En cas d'erreur de permission, essayer quand même
-      return true;
-    }
-  }
 
   /// Sélectionner une image depuis la galerie ou l'appareil photo
   static Future<Uint8List?> pickImage({
@@ -57,12 +17,6 @@ class ImageService {
     int imageQuality = 85,
   }) async {
     try {
-      // Vérifier et demander les permissions
-      final hasPermission = await _requestPermissions(source);
-      if (!hasPermission) {
-        throw Exception('Permission refusée pour accéder aux ${source == ImageSource.camera ? 'photos' : 'images'}');
-      }
-
       final XFile? image = await _picker.pickImage(
         source: source,
         maxWidth: maxWidth?.toDouble(),

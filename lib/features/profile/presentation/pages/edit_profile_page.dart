@@ -204,10 +204,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _isUploadingImage = false;
         });
         
+        String errorMessage = 'Erreur lors de l\'upload de l\'image';
+        
+        // Messages d'erreur plus spécifiques
+        if (e.toString().contains('Permission')) {
+          errorMessage = 'Permission refusée. Vérifiez les paramètres de l\'app.';
+        } else if (e.toString().contains('trop volumineuse')) {
+          errorMessage = 'Image trop volumineuse (max 5MB)';
+        } else if (e.toString().contains('format')) {
+          errorMessage = 'Format d\'image non supporté';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur: $e'),
+            content: Text(errorMessage),
             backgroundColor: AppColors.error,
+            action: SnackBarAction(
+              label: 'Réessayer',
+              textColor: Colors.white,
+              onPressed: _changeProfilePicture,
+            ),
           ),
         );
       }
