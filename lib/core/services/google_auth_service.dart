@@ -5,7 +5,7 @@ import 'supabase_service.dart';
 
 class GoogleAuthService {
   static final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   // Configuration Google Sign-In pour Android natif
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -13,7 +13,8 @@ class GoogleAuthService {
       'profile',
     ],
     // Utiliser le client ID web pour Supabase
-    serverClientId: '361640124056-aipd8mae8vjocm6v9hn7r4qdasp9thml.apps.googleusercontent.com', // À remplacer par votre vrai client ID
+    serverClientId:
+        '361640124056-aipd8mae8vjocm6v9hn7r4qdasp9thml.apps.googleusercontent.com', // À remplacer par votre vrai client ID
   );
 
   /// Connexion Google native pour Android
@@ -25,10 +26,10 @@ class GoogleAuthService {
 
       // 1. Déconnecter l'utilisateur précédent si nécessaire
       await _googleSignIn.signOut();
-      
+
       // 2. Lancer le processus de connexion Google natif
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser == null) {
         if (kDebugMode) {
           print('❌ Connexion Google annulée par l\'utilisateur');
@@ -41,8 +42,9 @@ class GoogleAuthService {
       }
 
       // 3. Obtenir les tokens d'authentification
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
       final String? accessToken = googleAuth.accessToken;
       final String? idToken = googleAuth.idToken;
 
@@ -76,12 +78,11 @@ class GoogleAuthService {
       } else {
         throw Exception('Échec de l\'authentification Supabase');
       }
-
     } catch (e) {
       if (kDebugMode) {
         print('❌ Erreur lors de l\'authentification Google: $e');
       }
-      
+
       // Nettoyer en cas d'erreur
       try {
         await _googleSignIn.signOut();
@@ -90,38 +91,40 @@ class GoogleAuthService {
           print('⚠️  Erreur lors de la déconnexion Google: $signOutError');
         }
       }
-      
+
       rethrow;
     }
   }
 
   /// Créer ou mettre à jour le profil utilisateur après connexion Google
   static Future<void> _createOrUpdateUserProfile(
-    User supabaseUser, 
+    User supabaseUser,
     GoogleSignInAccount googleUser,
   ) async {
     try {
       // Vérifier si le profil existe déjà
-      final existingProfile = await SupabaseService.getUserProfile(supabaseUser.id);
+      final existingProfile =
+          await SupabaseService.getUserProfile(supabaseUser.id);
 
       if (existingProfile == null) {
         // Créer un nouveau profil
         await SupabaseService.createUserProfile(
           uid: supabaseUser.id,
-          displayName: googleUser.displayName ?? 
-                      googleUser.email.split('@')[0] ?? 
-                      'Utilisateur Google',
+          displayName: googleUser.displayName ??
+              googleUser.email.split('@')[0] ??
+              'Utilisateur Google',
           email: googleUser.email,
           phoneNumber: null, // Google ne fournit pas le numéro de téléphone
         );
-        
+
         if (kDebugMode) {
           print('✅ Nouveau profil utilisateur créé');
         }
       } else {
         // Mettre à jour le profil existant si nécessaire
-        final needsUpdate = existingProfile['display_name'] != googleUser.displayName ||
-                           existingProfile['email'] != googleUser.email;
+        final needsUpdate =
+            existingProfile['display_name'] != googleUser.displayName ||
+                existingProfile['email'] != googleUser.email;
 
         if (needsUpdate) {
           await SupabaseService.updateUserProfile(
@@ -132,7 +135,7 @@ class GoogleAuthService {
               'photo_url': googleUser.photoUrl,
             },
           );
-          
+
           if (kDebugMode) {
             print('✅ Profil utilisateur mis à jour');
           }
@@ -151,10 +154,10 @@ class GoogleAuthService {
     try {
       // Déconnecter de Supabase
       await _supabase.auth.signOut();
-      
+
       // Déconnecter de Google
       await _googleSignIn.signOut();
-      
+
       if (kDebugMode) {
         print('✅ Déconnexion Google et Supabase réussie');
       }
