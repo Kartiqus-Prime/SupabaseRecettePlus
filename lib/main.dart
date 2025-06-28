@@ -253,10 +253,56 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    // Écouter les changements d'authentification
+    // Écouter les changements d'authentification avec gestion d'erreur améliorée
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
+        // Gestion des erreurs de connexion
+        if (snapshot.hasError) {
+          print('❌ Erreur AuthState: ${snapshot.error}');
+          return Scaffold(
+            backgroundColor: AppColors.getBackground(isDark),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 80,
+                    color: AppColors.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Erreur de connexion',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.getTextPrimary(isDark),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Vérifiez votre connexion internet',
+                    style: TextStyle(
+                      color: AppColors.getTextSecondary(isDark),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _isInitialized = false;
+                      });
+                      _checkInitialization();
+                    },
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             backgroundColor: AppColors.getBackground(isDark),
@@ -281,17 +327,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
 
+        // Vérifier l'état d'authentification
         final session = snapshot.hasData ? snapshot.data!.session : null;
+        final isAuthenticated = session != null;
         
-        print('🔐 État d\'authentification: ${session != null ? 'Connecté' : 'Déconnecté'}');
-        if (session != null) {
+        print('🔐 État d\'authentification: ${isAuthenticated ? 'Connecté' : 'Déconnecté'}');
+        if (isAuthenticated) {
           print('👤 Utilisateur: ${session.user.email}');
         }
         
-        if (session != null) {
-          // Redirection automatique vers l'application principale
+        // Navigation basée sur l'état d'authentification
+        if (isAuthenticated) {
+          // Utilisateur connecté -> Aller à l'application principale
           return const MainNavigationPage();
         } else {
+          // Utilisateur non connecté -> Aller à la page de bienvenue
           return const WelcomePage();
         }
       },

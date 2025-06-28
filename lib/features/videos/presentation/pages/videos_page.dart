@@ -73,7 +73,7 @@ class _VideosPageState extends State<VideosPage> {
       // Charger des vidéos avec mélange aléatoire
       final videos = await VideoService.getVideos(limit: 50, shuffle: true);
       
-      // Si aucune vidéo en base, utiliser des données d'exemple
+      // Si aucune vidéo en base, utiliser des données d'exemple avec des images valides
       if (videos.isEmpty) {
         _videos = _getSampleVideos();
       } else {
@@ -106,7 +106,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Pasta Carbonara Authentique',
         'description': 'Apprenez à faire une vraie carbonara italienne avec seulement 5 ingrédients !',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 180,
         'views': 15420,
         'likes': 892,
@@ -119,7 +119,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Technique de découpe des légumes',
         'description': 'Maîtrisez les techniques de découpe comme un chef professionnel',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 240,
         'views': 8930,
         'likes': 567,
@@ -132,7 +132,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Tiramisu Express',
         'description': 'Un tiramisu délicieux en seulement 15 minutes !',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/6880219/pexels-photo-6880219.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/6880219/pexels-photo-6880219.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 120,
         'views': 23450,
         'likes': 1234,
@@ -145,7 +145,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Smoothie Bowl Tropical',
         'description': 'Un petit-déjeuner coloré et nutritif pour bien commencer la journée',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 90,
         'views': 12340,
         'likes': 678,
@@ -158,7 +158,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Ratatouille Traditionnelle',
         'description': 'La recette authentique de la ratatouille provençale',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/8629141/pexels-photo-8629141.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 300,
         'views': 18760,
         'likes': 945,
@@ -171,7 +171,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Salade César Parfaite',
         'description': 'Les secrets d\'une salade César comme au restaurant',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/2097090/pexels-photo-2097090.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/2097090/pexels-photo-2097090.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 150,
         'views': 9876,
         'likes': 543,
@@ -184,7 +184,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Croissants Maison',
         'description': 'Réalisez de vrais croissants français chez vous',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/2067396/pexels-photo-2067396.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/2067396/pexels-photo-2067396.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 420,
         'views': 31250,
         'likes': 1876,
@@ -197,7 +197,7 @@ class _VideosPageState extends State<VideosPage> {
         'title': 'Soupe de Légumes d\'Hiver',
         'description': 'Une soupe réconfortante pour les jours froids',
         'video_url': 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-        'thumbnail': 'https://images.pexels.com/photos/539451/pexels-photo-539451.jpeg',
+        'thumbnail': 'https://images.pexels.com/photos/539451/pexels-photo-539451.jpeg?auto=compress&cs=tinysrgb&w=800',
         'duration': 200,
         'views': 7654,
         'likes': 432,
