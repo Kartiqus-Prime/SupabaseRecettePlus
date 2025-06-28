@@ -6,6 +6,7 @@ import '../../../../core/services/supabase_service.dart';
 import '../../../../core/services/cart_service.dart';
 import '../../../../core/utils/currency_utils.dart';
 import 'preconfigured_carts_page.dart';
+import 'product_cart_detail_page.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -24,7 +25,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   Timer? _autoScrollTimer;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   final List<String> _categories = [
     'Tous',
     'Épices',
@@ -34,7 +35,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
     'Livres',
     'Bio',
   ];
-  
+
   @override
   void initState() {
     super.initState();
@@ -63,7 +64,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       if (_featuredCarts.isNotEmpty && _cartsPageController.hasClients) {
         final nextPage = (_cartsPageController.page?.round() ?? 0) + 1;
         final targetPage = nextPage >= _featuredCarts.length ? 0 : nextPage;
-        
+
         _cartsPageController.animateToPage(
           targetPage,
           duration: const Duration(milliseconds: 800),
@@ -107,8 +108,8 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
     try {
       final products = await SupabaseService.getProducts(
         category: _selectedCategory == 'Tous' ? null : _selectedCategory,
-        searchQuery: _searchController.text.trim().isNotEmpty 
-            ? _searchController.text.trim() 
+        searchQuery: _searchController.text.trim().isNotEmpty
+            ? _searchController.text.trim()
             : null,
       );
 
@@ -126,7 +127,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   Future<void> _loadFeaturedCarts() async {
     try {
       final carts = await CartService.getFeaturedPreconfiguredCarts();
-      
+
       if (carts.isEmpty) {
         _featuredCarts = _getSampleFeaturedCarts();
       } else {
@@ -259,7 +260,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
     }
 
     return _products.where((product) {
-      final matchesCategory = _selectedCategory == 'Tous' || 
+      final matchesCategory = _selectedCategory == 'Tous' ||
                              product['category'] == _selectedCategory;
       final matchesSearch = _searchController.text.isEmpty ||
                            product['name']
@@ -275,7 +276,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
         productId: product['id'],
         quantity: 1,
       );
-      
+
       if (mounted) {
         HapticFeedback.lightImpact();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -305,32 +306,6 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
     }
   }
 
-  Future<void> _addPreconfiguredCart(Map<String, dynamic> cart) async {
-    try {
-      await CartService.addPreconfiguredCartToUser(cart['id']);
-      
-      if (mounted) {
-        HapticFeedback.lightImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${cart['name']} ajouté au panier'),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
   void _showFilterModal() {
     showModalBottomSheet(
       context: context,
@@ -343,18 +318,17 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   void _viewCartDetails(Map<String, dynamic> cart) {
     HapticFeedback.mediumImpact();
     
-    // TODO: Naviguer vers la page de détail du panier préconfigué
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Ouverture de: ${cart['name']}'),
-        backgroundColor: AppColors.primary,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductCartDetailPage(cart: cart),
       ),
     );
   }
 
   void _viewAllPreconfiguredCarts() {
     HapticFeedback.mediumImpact();
-    
+
     // Navigation vers la page dédiée aux paniers préconfigurés
     Navigator.push(
       context,
@@ -366,7 +340,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
 
   void _viewProduct(Map<String, dynamic> product) {
     HapticFeedback.mediumImpact();
-    
+
     // TODO: Naviguer vers la page de détail du produit
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -379,7 +353,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: AppColors.getBackground(isDark),
       body: SafeArea(
@@ -487,7 +461,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 ],
               ),
             ),
-            
+
             // Paniers préconfigurés en vedette avec défilement automatique
             if (_featuredCarts.isNotEmpty) ...[
               Container(
@@ -567,7 +541,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 ),
               ),
             ],
-            
+
             // Grille des produits
             Expanded(
               child: _isLoading
@@ -582,7 +556,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                               padding: const EdgeInsets.all(20),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 0.8,
+                                childAspectRatio: 0.75, // Ajusté pour éviter l'overflow
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),
@@ -648,7 +622,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                       ),
               ),
             ),
-            
+
             // Overlay gradient
             Positioned.fill(
               child: Container(
@@ -665,7 +639,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 ),
               ),
             ),
-            
+
             // Contenu
             Positioned(
               left: 20,
@@ -692,7 +666,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Nom du panier
                   Text(
                     cart['name'] ?? 'Panier',
@@ -705,7 +679,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  
+
                   // Description
                   Text(
                     cart['description'] ?? '',
@@ -717,7 +691,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Prix et nombre d'articles
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -750,35 +724,6 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 ],
               ),
             ),
-            
-            // Bouton d'ajout
-            Positioned(
-              top: 16,
-              right: 16,
-              child: GestureDetector(
-                onTap: () => _addPreconfiguredCart(cart),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.add_shopping_cart,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -787,7 +732,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
 
   Widget _buildFilterModal() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.getCardBackground(isDark),
@@ -808,7 +753,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Titre
             Text(
               'Filtrer les produits',
@@ -819,7 +764,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Catégories
             Text(
               'Catégories',
@@ -830,7 +775,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
               ),
             ),
             const SizedBox(height: 12),
-            
+
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -859,7 +804,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 );
               }).toList(),
             ),
-            
+
             const SizedBox(height: 20),
           ],
         ),
@@ -927,10 +872,10 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       ),
     );
   }
-  
+
   Widget _buildProductCard(Map<String, dynamic> product, bool isDark) {
     final isInStock = product['in_stock'] ?? true;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.getCardBackground(isDark),
@@ -970,25 +915,29 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   color: AppColors.primary.withOpacity(0.1),
-                                  child: const Icon(
-                                    Icons.shopping_bag,
-                                    color: AppColors.primary,
-                                    size: 40,
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.image_not_supported,
+                                      color: AppColors.primary,
+                                      size: 40,
+                                    ),
                                   ),
                                 );
                               },
                             )
                           : Container(
                               color: AppColors.primary.withOpacity(0.1),
-                              child: const Icon(
-                                Icons.shopping_bag,
-                                color: AppColors.primary,
-                                size: 40,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  color: AppColors.primary,
+                                  size: 40,
+                                ),
                               ),
                             ),
                     ),
                   ),
-                  
+
                   // Badge de disponibilité
                   if (!isInStock)
                     Positioned(
@@ -1017,7 +966,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                         ),
                       ),
                     ),
-                  
+
                   // Badge catégorie
                   Positioned(
                     top: 12,
@@ -1045,7 +994,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                       ),
                     ),
                   ),
-                  
+
                   // Rating
                   if (product['rating'] != null)
                     Positioned(
@@ -1081,7 +1030,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 ],
               ),
             ),
-            
+
             // Informations du produit
             Expanded(
               flex: 2,
@@ -1101,7 +1050,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    
+
                     // Unité
                     if (product['unit'] != null) ...[
                       const SizedBox(height: 2),
@@ -1115,9 +1064,9 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    
+
                     const Spacer(),
-                    
+
                     // Prix et bouton d'ajout
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1136,9 +1085,9 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        
+
                         const SizedBox(width: 8),
-                        
+
                         // Bouton d'ajout au panier
                         GestureDetector(
                           onTap: isInStock ? () => _addToCart(product) : null,
@@ -1146,8 +1095,8 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: isInStock 
-                                  ? AppColors.primary 
+                              color: isInStock
+                                  ? AppColors.primary
                                   : AppColors.getTextSecondary(isDark),
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: isInStock ? [
