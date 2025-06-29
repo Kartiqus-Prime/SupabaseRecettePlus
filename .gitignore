@@ -32,7 +32,10 @@ pubspec.lock
 .pub-cache/
 .pub/
 /build/
-
+ios
+.vscode
+web
+.env-example
 # Symbolication related
 app.*.symbols
 
