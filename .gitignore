@@ -35,6 +35,11 @@ pubspec.lock
 ios
 .vscode
 web
+android
+assets
+test
+analysis_options.yaml
+firebase.json
 .env-example
 # Symbolication related
 app.*.symbols
